@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#60a5fa">
+<title>RCU Clinica v4.5 — Home</title>
+<style>
+  :root{
+    --bg:#f6f9ff;--ink:#0b132a;--muted:#5b6b8b;
+    --card:#ffffff;--border:#e6eaf2;
+    --accent:#4f8ef7;--accent2:#1e62e0;--glow:#c9dcff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1200px 600px at 20% -10%,var(--glow),transparent 45%),var(--bg);color:var(--ink);font:15px/1.55 system-ui,Segoe UI,Roboto,Helvetica,Arial}
+  header{padding:28px 16px;text-align:center}
+  .logo{width:96px;height:96px;margin:10px auto 8px;display:block;border-radius:24px;box-shadow:0 10px 24px rgba(30,98,224,.15)}
+  h1{margin:6px 0 4px;font-size:24px;letter-spacing:.2px}
+  .sub{color:var(--muted);font-size:13px}
+  .wrap{max-width:620px;margin:16px auto;padding:0 16px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:18px;box-shadow:0 8px 24px rgba(24,39,75,.08);padding:22px;text-align:center}
+  .btn{display:block;width:100%;padding:14px 16px;margin:10px 0;border-radius:12px;border:1px solid var(--accent);font-weight:800;cursor:pointer;transition:.2s}
+  .btn-primary{background:linear-gradient(180deg,var(--accent),var(--accent2));color:#fff;border-color:transparent;box-shadow:0 8px 18px rgba(30,98,224,.25)}
+  .btn-primary:hover{transform:translateY(-1px)}
+  .btn-secondary{background:#fff;color:#0f172a}
+  .hint{color:var(--muted);font-size:12px;margin-top:10px}
+  .ver{color:#667aa3;font-size:12px;margin-top:12px}
+</style>
+</head>
+<body>
+<header>
+  <img src="icons/icon-192.png" class="logo" alt="RCU Clinica v4.5">
+  <h1>RCU Clinica <span style="font-weight:900;color:#1e40af">v4.5</span></h1>
+  <div class="sub">App clinica locale · Offline · CSV · Analisi intelligenti</div>
+</header>
+<div class="wrap">
+  <div class="card">
+    <button class="btn btn-primary" onclick="location.href='diario_rcu_chatgpt_v4_5.html'">📚 Apri Diario</button>
+    <button class="btn btn-secondary" onclick="location.href='dashboard_rcu_chatgpt_v4_5.html'">📈 Apri Dashboard</button>
+    <a class="btn btn-primary" href="analisi_rcu_chatgpt_v4_5.html" style="display:block;text-align:center">📊 Analisi</a>
+    <div class="hint">Suggerimento: installa l'app dal menu ⋮ → “Aggiungi a schermata Home”.</div>
+    <div class="ver">Release 4.5 PWA</div>
+  </div>
+</div>
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./service-worker.js', { scope: './' });
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RCU Clinica v4.5  Analisi</title>
+<style>
+  :root{--bg:#f7f8fb;--card:#ffffff;--ink:#1f2937;--muted:#6b7280;--border:#e5e7eb;--brand:#1e40af;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,"Segoe UI",Roboto,Helvetica,Arial;}
+  header{position:sticky;top:0;z-index:6;background:#fff;border-bottom:1px solid var(--border);padding:12px 14px;}
+  .header-inner{max-width:880px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+  .title-block{display:flex;flex-direction:column;gap:4px;min-width:200px;}
+  h1{margin:0;font-size:18px;}
+  .subtitle{color:var(--muted);font-size:12px;}
+  .btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);background:#fff;padding:6px 10px;border-radius:10px;font-weight:600;text-decoration:none;color:var(--ink);cursor:pointer;}
+  .wrap{max-width:880px;margin:0 auto;padding:12px;}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px;margin-bottom:12px;box-shadow:0 6px 14px rgba(24,39,75,.06);}
+  .card h2{margin:0 0 8px;font-size:16px;}
+  .grid{display:flex;flex-wrap:wrap;gap:10px;}
+  .grid .stat{flex:1 1 150px;min-width:150px;background:#f9fafc;border:1px solid var(--border);border-radius:10px;padding:10px;}
+  .stat h3{margin:0;font-size:13px;color:var(--muted);}
+  .stat .value{font-weight:700;font-size:18px;margin-top:4px;}
+  table{width:100%;border-collapse:collapse;margin-top:8px;font-size:13px;}
+  th,td{border-bottom:1px solid var(--border);padding:8px;text-align:left;vertical-align:top;}
+  th{background:#f3f4f6;font-weight:600;}
+  .delta{font-weight:600;display:inline-block;min-width:54px;}
+  .delta.down{color:#16a34a;}
+  .delta.up{color:#dc2626;}
+  .delta.flat{color:#6b7280;}
+  .trend-text{font-weight:600;}
+  .trend-text.down{color:#16a34a;}
+  .trend-text.up{color:#dc2626;}
+  .trend-text.flat{color:#6b7280;}
+  .analysis-box{background:#f9fafb;border:1px solid var(--border);border-radius:12px;padding:10px;font-size:13px;line-height:1.5;margin-top:6px;}
+  .nodata{display:none;padding:32px;text-align:center;font-weight:600;color:var(--muted);}
+  #contentCards{display:block;}
+  .foot-links{max-width:880px;margin:16px auto 28px;padding:0 12px;text-align:center;font-weight:600;}
+  .foot-links a{color:var(--brand);text-decoration:none;}
+  .heatmapTable td,
+  .heatmapTable th{ text-align:center; }
+  .heatmapTable th:first-child,
+  .heatmapTable td:first-child{ text-align:left; }
+  .heatmapTable td{
+    min-width:70px;
+    font-size:12px;
+    padding:6px 4px;
+    border-bottom:1px solid var(--border);
+  }
+  .heatmapTable td .cell-val{ font-weight:700; }
+  .heatmapTable td .cell-label{
+    display:block;
+    font-size:11px;
+    color:var(--muted);
+    margin-top:2px;
+  }
+
+
+  @media (max-width:640px){
+    header{padding:10px 12px;}
+    .wrap{padding:10px;}
+    .card{padding:10px;}
+    .grid{flex-direction:column;}
+    h1{font-size:17px;}
+    .subtitle{font-size:11px;}
+    table{font-size:12.5px;}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="header-inner">
+    <div class="title-block">
+      <h1>RCU Clinica v4.5  Analisi</h1>
+      <div class="subtitle">Sintesi clinica e analisi statistica dei dati registrati</div>
+    </div>
+    <a class="btn" href="dashboard_rcu_chatgpt_v4_5.html">&#11013; Torna alla Dashboard</a>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="nodata" id="noDataMessage">Analisi non disponibile: dati insufficienti.</div>
+  <div id="contentCards">
+    <section class="card" id="overviewCard">
+      <h2>Panoramica</h2>
+      <div class="grid" id="overviewStats">
+        <div class="stat"><h3>Giorni analizzati</h3><div class="value" id="daysCount">&ndash;</div></div>
+        <div class="stat"><h3>Dolore medio</h3><div class="value" id="avgDolore">&ndash;</div></div>
+        <div class="stat"><h3>Muco medio</h3><div class="value" id="avgMuco">&ndash;</div></div>
+        <div class="stat"><h3>Sangue medio</h3><div class="value" id="avgSangue">&ndash;</div></div>
+        <div class="stat"><h3>Altre terapie (%)</h3><div class="value" id="otherTherPct">&ndash;</div></div>
+      </div>
+    </section>
+
+    <section class="card" id="effectsCard">
+      <h2>Analisi terapie</h2>
+      <div class="muted" style="font-size:12px;"> calcolato sui 3 giorni successivi alla nuova assunzione di ciascun farmaco (esclusa Mesalazina orale).</div>
+      <table id="effectsTable">
+        <thead><tr><th>Terapia</th><th> dolore</th><th> muco</th><th> sangue</th><th>% miglioramento</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section class="card" id="commentCard">
+      <h2>&#128172; Analisi risultati</h2>
+      <div class="analysis-box" id="analysisBox">In attesa di dati...</div>
+    </section>
+
+    <section class="card" id="corrCard">
+      <h2>Correlazioni sintomi ↔ terapie</h2>
+      <div class="muted" style="font-size:12px;">
+        Analisi esplorativa delle associazioni tra farmaci assunti e sintomi (muco, dolore, sangue).
+        I valori r sono coefficienti di correlazione (φ o Pearson); p è un'approssimazione del p-value.
+      </div>
+
+      <table id="corrTherapyTable" style="margin-top:10px;">
+        <thead>
+          <tr>
+            <th>Terapia</th>
+            <th>r muco</th>
+            <th>p muco</th>
+            <th>r dolore</th>
+            <th>p dolore</th>
+            <th>r sangue</th>
+            <th>p sangue</th>
+            <th>n</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td colspan="8" class="muted">In attesa di dati...</td></tr>
+        </tbody>
+      </table>
+
+      <h3 style="margin-top:18px;margin-bottom:6px;">Heatmap sintomi-terapie</h3>
+      <div class="muted" style="font-size:12px;margin-bottom:6px;">
+        Colori più intensi indicano correlazioni più forti. Rosso = associazione positiva (sintomi ↑), blu = negativa (sintomi ↓).
+      </div>
+      <table id="heatmapTable" class="heatmapTable">
+        <thead>
+          <tr>
+            <th style="text-align:left;">Terapia</th>
+            <th>Muco</th>
+            <th>Dolore</th>
+            <th>Sangue</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td colspan="4" class="muted">In attesa di dati...</td></tr>
+        </tbody>
+      </table>
+    </section>
+</div>
+</div>
+
+<div class="foot-links"><a href="index.html">&#127968; Home</a></div>
+
+<script>
+const KEY = 'diarioRCU_v4_1';
+const BASE_THERAPY = 'Mesalazina orale';
+const NEG_ARROW = '\u2193';
+const POS_ARROW = '\u2191';
+const FLAT_ARROW = '\u2192';
+
+const mean = arr => arr.length ? arr.reduce((sum,val)=>sum+val,0) / arr.length : null;
+const toNumber = value => {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : null;
+};
+
+function formatSigned(value, digits=2){
+  if(value==null || !Number.isFinite(value)) return '\u2013';
+  const sign = value>0 ? '+' : '';
+  return `${sign}${value.toFixed(digits)}`;
+}
+
+function deltaClass(value){
+  if(value==null || !Number.isFinite(value)) return 'delta flat';
+  return Math.abs(value)<0.05 ? 'delta flat' : (value<0 ? 'delta down' : 'delta up');
+}
+
+function percentDescriptor(value){
+  if(value==null || !Number.isFinite(value)) return {text:'\u2013', cls:'flat', arrow:FLAT_ARROW};
+  const arrow = value<-0.5 ? NEG_ARROW : value>0.5 ? POS_ARROW : FLAT_ARROW;
+  const cls = arrow===NEG_ARROW ? 'down' : arrow===POS_ARROW ? 'up' : 'flat';
+  return {text:`${arrow} ${Math.abs(value).toFixed(0)}%`, cls, arrow};
+}
+
+function computePanorama(data){
+  if(!data.length) return null;
+  const dolore = data.map(r=>toNumber(r.dolore)).filter(v=>v!=null);
+  const muco = data.map(r=>toNumber(r.muco)).filter(v=>v!=null);
+  const sangue = data.map(r=>toNumber(r.sangue)).filter(v=>v!=null);
+  const otherDays = data.filter(r=>{
+    const ter = (r.terapie||[]).map(t=>String(t).trim()).filter(Boolean);
+    return ter.length && ter.some(t=>t!==BASE_THERAPY);
+  }).length;
+  return {
+    days: data.length,
+    avgDolore: mean(dolore),
+    avgMuco: mean(muco),
+    avgSangue: mean(sangue),
+    otherTherPct: data.length ? (otherDays/data.length*100) : null
+  };
+}
+
+function computeTherapyEffects(data){
+  if(!data.length) return {events:[], perTherapy:[]};
+  const sorted = [...data].sort((a,b)=>a.data.localeCompare(b.data));
+  const therapyByIndex = sorted.map(r=>(r.terapie||[]).map(t=>String(t).trim()).filter(Boolean));
+  const events = [];
+  let previous = new Set();
+
+  for(let i=0;i<sorted.length;i++){
+    const today = therapyByIndex[i];
+    const baselineDol = toNumber(sorted[i].dolore);
+    const baselineMuco = toNumber(sorted[i].muco);
+    const baselineSangue = toNumber(sorted[i].sangue);
+    if(baselineDol==null || baselineMuco==null || baselineSangue==null){
+      previous = new Set(today);
+      continue;
+    }
+    const newTherapies = today.filter(name=>name && name!==BASE_THERAPY && !previous.has(name));
+    if(newTherapies.length){
+      const postWindow = sorted.slice(i+1, i+4);
+      if(postWindow.length===3){
+        const postDol = postWindow.map(r=>toNumber(r.dolore));
+        const postMuco = postWindow.map(r=>toNumber(r.muco));
+        const postSangue = postWindow.map(r=>toNumber(r.sangue));
+        const hasAll = postDol.every(v=>v!=null) && postMuco.every(v=>v!=null) && postSangue.every(v=>v!=null);
+        if(hasAll){
+          const meanDol = mean(postDol);
+          const meanMuco = mean(postMuco);
+          const meanSangue = mean(postSangue);
+          newTherapies.forEach(name=>{
+            const deltaDol = meanDol - baselineDol;
+            const deltaMuco = meanMuco - baselineMuco;
+            const deltaSangue = meanSangue - baselineSangue;
+            const pctDol = baselineDol ? (deltaDol/baselineDol)*100 : null;
+            const pctMuco = baselineMuco ? (deltaMuco/baselineMuco)*100 : null;
+            const pctSan = baselineSangue ? (deltaSangue/baselineSangue)*100 : null;
+            const pctValues = [pctDol,pctMuco,pctSan].filter(v=>v!=null && Number.isFinite(v));
+            events.push({
+              therapy:name,
+              date:sorted[i].data,
+              deltaDolore:deltaDol,
+              deltaMuco:deltaMuco,
+              deltaSangue:deltaSangue,
+              pctDolore:pctDol,
+              pctMuco:pctMuco,
+              pctSangue:pctSan,
+              overallPct:pctValues.length?mean(pctValues):null
+            });
+          });
+        }
+      }
+    }
+    previous = new Set(today);
+  }
+
+  const grouped = new Map();
+  events.forEach(ev=>{
+    if(!grouped.has(ev.therapy)){
+      grouped.set(ev.therapy,{
+        therapy:ev.therapy,
+        count:0,
+        deltaDolore:0,
+        deltaMuco:0,
+        deltaSangue:0,
+        pctDolore:0,pctDoloreCount:0,
+        pctMuco:0,pctMucoCount:0,
+        pctSangue:0,pctSangueCount:0,
+        overallPct:0,overallPctCount:0
+      });
+    }
+    const agg = grouped.get(ev.therapy);
+    agg.count++;
+    agg.deltaDolore += ev.deltaDolore;
+    agg.deltaMuco += ev.deltaMuco;
+    agg.deltaSangue += ev.deltaSangue;
+    if(Number.isFinite(ev.pctDolore)){agg.pctDolore += ev.pctDolore; agg.pctDoloreCount++;}
+    if(Number.isFinite(ev.pctMuco)){agg.pctMuco += ev.pctMuco; agg.pctMucoCount++;}
+    if(Number.isFinite(ev.pctSangue)){agg.pctSangue += ev.pctSangue; agg.pctSangueCount++;}
+    if(Number.isFinite(ev.overallPct)){agg.overallPct += ev.overallPct; agg.overallPctCount++;}
+  });
+
+  const perTherapy = [...grouped.values()].map(g=>({
+    therapy:g.therapy,
+    events:g.count,
+    deltaDolore:g.deltaDolore/g.count,
+    deltaMuco:g.deltaMuco/g.count,
+    deltaSangue:g.deltaSangue/g.count,
+    pctDolore:g.pctDoloreCount? g.pctDolore/g.pctDoloreCount : null,
+    pctMuco:g.pctMucoCount? g.pctMuco/g.pctMucoCount : null,
+    pctSangue:g.pctSangueCount? g.pctSangue/g.pctSangueCount : null,
+    overallPct:g.overallPctCount? g.overallPct/g.overallPctCount : null
+  })).sort((a,b)=>a.therapy.localeCompare(b.therapy));
+
+  return {events, perTherapy};
+}
+
+function renderPanorama(stats){
+  const daysEl = document.getElementById('daysCount');
+  const doloEl = document.getElementById('avgDolore');
+  const mucoEl = document.getElementById('avgMuco');
+  const sangueEl = document.getElementById('avgSangue');
+  const otherEl = document.getElementById('otherTherPct');
+
+  if(!stats){
+    daysEl.textContent = '\u2013';
+    doloEl.textContent = mucoEl.textContent = sangueEl.textContent = otherEl.textContent = '\u2013';
+    return;
+  }
+
+  daysEl.textContent = stats.days ?? '\u2013';
+  doloEl.textContent = formatSigned(stats.avgDolore,1);
+  mucoEl.textContent = formatSigned(stats.avgMuco,2);
+  sangueEl.textContent = formatSigned(stats.avgSangue,2);
+  otherEl.textContent = stats.otherTherPct!=null ? `${stats.otherTherPct.toFixed(0)}%` : '\u2013';
+}
+
+function renderEffects(perTherapy){
+  const tbody = document.querySelector('#effectsTable tbody');
+  if(!perTherapy.length){
+    tbody.innerHTML = '<tr><td colspan="5" class="muted">Nessun evento con dati sufficienti.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = perTherapy.map(row=>{
+    const deltas = [row.deltaDolore,row.deltaMuco,row.deltaSangue].map(val=>`<span class="${deltaClass(val)}">${formatSigned(val)}</span>`);
+    const pctInfo = percentDescriptor(row.overallPct);
+    const countBadge = row.events>1 ? `<div class="muted" style="font-size:11px;">n=${row.events}</div>` : '';
+    return `<tr>
+      <td>${row.therapy}${countBadge}</td>
+      <td>${deltas[0]}</td>
+      <td>${deltas[1]}</td>
+      <td>${deltas[2]}</td>
+      <td><span class="trend-text ${pctInfo.cls}">${pctInfo.text}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function averagePercent(events, key){
+  const vals = events.map(ev=>ev[key]).filter(v=>Number.isFinite(v));
+  return vals.length ? mean(vals) : null;
+}
+
+function renderComment(events){
+  const box = document.getElementById('analysisBox');
+  if(!events.length){
+    box.textContent = 'Dati insufficienti per valutare gli effetti post-assunzione.';
+    return;
+  }
+  const avgDol = averagePercent(events,'pctDolore');
+  const avgMuco = averagePercent(events,'pctMuco');
+  const avgSan = averagePercent(events,'pctSangue');
+  const lines = [];
+
+  if(avgDol!=null && avgDol<0){
+    const info = percentDescriptor(avgDol);
+    lines.push(`Le terapie episodiche hanno mediamente ridotto il dolore del ${info.text} nei 3 giorni successivi allassunzione.`);
+  } else {
+    lines.push('Le terapie episodiche non hanno ridotto il dolore in modo evidente nei giorni successivi allassunzione.');
+  }
+
+  if(avgMuco!=null && avgMuco<0 && avgSan!=null && avgSan<0){
+    const mucoInfo = percentDescriptor(avgMuco);
+    const sangueInfo = percentDescriptor(avgSan);
+    lines.push(` stato osservato anche un miglioramento del muco (${mucoInfo.text}) e del sangue (${sangueInfo.text}).`);
+  } else {
+    lines.push('Muco e sangue stabili o senza variazioni significative.');
+  }
+  box.innerHTML = lines.join('<br>');
+}
+
+function toggleNoData(hasData){
+  const notice = document.getElementById('noDataMessage');
+  const content = document.getElementById('contentCards');
+  notice.style.display = hasData ? 'none' : 'block';
+  content.style.display = hasData ? 'block' : 'none';
+}
+
+
+// ===== Correlazioni sintomi ↔ terapie =====
+
+function getTherapyNames(data){
+  const set = new Set();
+  data.forEach(r => {
+    (r.terapie || []).forEach(t => {
+      const name = String(t).trim();
+      if(name && name !== BASE_THERAPY && name.toLowerCase() !== 'nessuna'){
+        set.add(name);
+      }
+    });
+  });
+  return [...set].sort((a,b)=>a.localeCompare(b));
+}
+
+function therapyPresenceSeries(data, therapyName){
+  return data.map(r => {
+    const list = (r.terapie || []).map(t => String(t).trim());
+    return list.includes(therapyName) ? 1 : 0;
+  });
+}
+
+function symptomSeries(data, key){
+  return data.map(r => {
+    const v = Number(r[key]);
+    return Number.isFinite(v) ? v : null;
+  });
+}
+
+function validPair(x, y){
+  const X = [], Y = [];
+  for(let i=0;i<x.length;i++){
+    if(x[i] != null && y[i] != null){
+      X.push(x[i]);
+      Y.push(y[i]);
+    }
+  }
+  return {X, Y};
+}
+
+function phiBinary(x, y){
+  const {X, Y} = validPair(x, y);
+  let a=0, b=0, c=0, d=0;
+  for(let i=0;i<X.length;i++){
+    if(X[i]===1 && Y[i]===1) a++;
+    else if(X[i]===1 && Y[i]===0) b++;
+    else if(X[i]===0 && Y[i]===1) c++;
+    else d++;
+  }
+  const n = a+b+c+d;
+  const denom = Math.sqrt((a+b)*(c+d)*(a+c)*(b+d));
+  const r = denom ? (a*d - b*c) / denom : 0;
+  const chi = n * r * r;
+  const p = Math.exp(-0.5 * chi);
+  return {r, p, n};
+}
+
+function pearsonNumeric(x, y){
+  const {X, Y} = validPair(x, y);
+  const n = Math.min(X.length, Y.length);
+  if(n < 3) return {r:0, p:1, n};
+
+  let sumX=0, sumY=0, sumXY=0, sumXX=0, sumYY=0;
+  for(let i=0;i<n;i++){
+    const xi = X[i], yi = Y[i];
+    sumX += xi; sumY += yi;
+    sumXY += xi*yi;
+    sumXX += xi*xi;
+    sumYY += yi*yi;
+  }
+  const num = (sumXY - (sumX*sumY)/n);
+  const den = Math.sqrt((sumXX - sumX*sumX/n) * (sumYY - sumY*sumY/n));
+  if(!den) return {r:0, p:1, n};
+  const r = num / den;
+
+  const df = n - 2;
+  const t = r * Math.sqrt(df / (1 - Math.min(0.9999, r*r)));
+  const p = approxPFromT(Math.abs(t), df);
+  return {r, p, n};
+}
+
+function approxPFromT(t, df){
+  const z = t * Math.sqrt((df - 2) / (df - 0.5));
+  return 2 * (1 - normalCdf(z));
+}
+
+function normalCdf(z){
+  const b1=0.319381530, b2=-0.356563782, b3=1.781477937, b4=-1.821255978, b5=1.330274429;
+  const p=0.2316419, c=0.3989422804014327;
+  const a=Math.abs(z);
+  const t=1/(1+a*p);
+  const m=((((b5*t+b4)*t+b3)*t+b2)*t+b1)*t;
+  const nd = 1 - c*Math.exp(-a*a/2)*m;
+  return z>=0 ? nd : 1-nd;
+}
+
+function correlationColor(r){
+  if(r == null || !Number.isFinite(r)) return 'transparent';
+  const mag = Math.min(1, Math.abs(r));
+  const alpha = 0.15 + 0.55 * mag;
+  if(r > 0){
+    return `rgba(220,38,38,${alpha})`;
+  } else if(r < 0){
+    return `rgba(37,99,235,${alpha})`;
+  }
+  return 'transparent';
+}
+
+function computeTherapyCorrelations(data){
+  if(!data.length) return [];
+  const therapies = getTherapyNames(data);
+  if(!therapies.length) return [];
+
+  const muco = symptomSeries(data, 'muco');
+  const dolore = symptomSeries(data, 'dolore');
+  const sangue = symptomSeries(data, 'sangue');
+
+  const results = therapies.map(name => {
+    const pres = therapyPresenceSeries(data, name);
+    const mucoStats = phiBinary(pres, muco);
+    const dolStats = pearsonNumeric(pres, dolore);
+    const sanStats = pearsonNumeric(pres, sangue);
+    const n = Math.max(mucoStats.n, dolStats.n, sanStats.n);
+    return { therapy:name, muco:mucoStats, dolore:dolStats, sangue:sanStats, n };
+  });
+
+  return results.sort((a,b)=>Math.abs(b.muco.r) - Math.abs(a.muco.r));
+}
+
+function renderTherapyCorrelationTable(corr){
+  const tbody = document.querySelector('#corrTherapyTable tbody');
+  if(!tbody) return;
+
+  if(!corr.length){
+    tbody.innerHTML = '<tr><td colspan="8" class="muted">Nessuna terapia con dati sufficienti per il calcolo.</td></tr>';
+    return;
+  }
+
+  const formatR = r => Number.isFinite(r) ? r.toFixed(2) : '–';
+  const formatP = p => (p < 0.0005 ? '&lt;0.001' : p.toFixed(3));
+
+  tbody.innerHTML = corr.map(row => `
+    <tr>
+      <td>${row.therapy}</td>
+      <td>${formatR(row.muco.r)}</td>
+      <td>${formatP(row.muco.p)}</td>
+      <td>${formatR(row.dolore.r)}</td>
+      <td>${formatP(row.dolore.p)}</td>
+      <td>${formatR(row.sangue.r)}</td>
+      <td>${formatP(row.sangue.p)}</td>
+      <td>${row.n}</td>
+    </tr>
+  `).join('');
+}
+
+function renderTherapyHeatmap(corr){
+  const tbody = document.querySelector('#heatmapTable tbody');
+  if(!tbody) return;
+
+  if(!corr.length){
+    tbody.innerHTML = '<tr><td colspan="4" class="muted">Nessuna terapia con dati sufficienti per creare la heatmap.</td></tr>';
+    return;
+  }
+
+  const formatR = r => Number.isFinite(r) ? r.toFixed(2) : '–';
+
+  tbody.innerHTML = corr.map(row => {
+    const cells = [
+      {key:'Muco',   r:row.muco.r},
+      {key:'Dolore', r:row.dolore.r},
+      {key:'Sangue', r:row.sangue.r}
+    ];
+    const tds = cells.map(c => `
+      <td style="background:${correlationColor(c.r)};">
+        <span class="cell-val">${formatR(c.r)}</span>
+        <span class="cell-label">${c.key}</span>
+      </td>
+    `).join('');
+
+    return `<tr>
+      <td style="text-align:left;">${row.therapy}</td>
+      ${tds}
+    </tr>`;
+  }).join('');
+}
+
+function init(){
+  const data = JSON.parse(localStorage.getItem(KEY)||'[]');
+  const hasData = data.length>0;
+  toggleNoData(hasData);
+  if(!hasData) return;
+
+  const panorama = computePanorama(data);
+  const {events, perTherapy} = computeTherapyEffects(data);
+  renderPanorama(panorama);
+  renderEffects(perTherapy);
+  renderComment(events);
+
+  const corr = computeTherapyCorrelations(data);
+  renderTherapyCorrelationTable(corr);
+  renderTherapyHeatmap(corr);
+}
+
+init();</script>
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./service-worker.js', { scope: './' });
+  }
+</script>
+</body>
+</html>

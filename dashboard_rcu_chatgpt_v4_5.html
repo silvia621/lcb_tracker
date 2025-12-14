@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RCU Clinica v4.5 → Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+ :root{--bg:#f7f8fb;--card:#fff;--ink:#1f2937;--muted:#6b7280;--border:#e5e7eb;--brand:#1e40af;}
+ *{box-sizing:border-box}
+ body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,Segoe UI,Roboto,Helvetica,Arial}
+ header{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--border);padding:16px;z-index:10}
+ .hwrap{max-width:980px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap}
+ h1{margin:0;font-size:18px}
+ .muted{color:var(--muted);font-size:13px}
+ .wrap{max-width:980px;margin:16px auto;padding:0 12px}
+ .card{background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:0 6px 14px rgba(24,39,75,.06);padding:16px;margin:0 0 14px}
+ .card h2{margin:0 0 12px;font-size:16px}
+ .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+ .btn{border:1px solid var(--border);background:#fff;padding:8px 12px;border-radius:10px;cursor:pointer;font-weight:600}
+ .kpi{display:flex;gap:12px;flex-wrap:wrap;margin:8px 0 12px}
+ .kpi .box{flex:1 1 180px;background:#fafbff;border:1px solid var(--border);border-radius:12px;padding:12px}
+ .kpi .box h3{margin:0 0 6px;font-size:13px;color:var(--muted)}
+ .kpi .val{font-size:22px;font-weight:700}
+ table{width:100%;border-collapse:collapse;margin-top:8px}
+ th,td{padding:10px;border-bottom:1px solid var(--border);text-align:left;font-size:14px;vertical-align:top}
+ th{font-weight:700;background:#fafafa}
+ .alert{background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:10px 12px;margin:6px 0;color:#9a3412}
+ .summary{background:#eef6ff;border:1px solid #bfdbfe;border-radius:12px;padding:14px;margin-top:10px;color:#1e3a8a}
+ .summary h3{margin:0 0 6px;font-size:15px}
+ .clickable-row{cursor:pointer;}
+ .clickable-row:hover{background:#f5f7ff;}
+ .detail{background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:12px;margin-top:10px}
+ .detail h4{margin:0 0 8px;font-size:14px}
+ .therapy-legend{display:flex;flex-wrap:wrap;gap:10px;margin:8px 0 4px;padding:6px 8px;background:#f9fafc;border:1px solid #e5e7eb;border-radius:10px;font-size:13px}
+ .therapy-legend .legend-item{display:flex;align-items:center;gap:6px;padding:4px 8px;background:#fff;border:1px solid #e5e7eb;border-radius:8px}
+ .therapy-legend .legend-swatch{width:12px;height:12px;border-radius:50%;border:1px solid rgba(31,41,55,0.15)}
+ .delta-table{width:100%;border-collapse:collapse;margin-top:6px;font-size:13px}
+ .delta-table thead{background:#f3f4f6}
+ .delta-table th,.delta-table td{padding:8px;border-bottom:1px solid #e5e7eb;text-align:left}
+ .delta-table td span.trend-up{color:#dc2626;font-weight:600}
+ .delta-table td span.trend-down{color:#16a34a;font-weight:600}
+ .actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px}
+ .actions .btn{margin-top:0}
+ @media (max-width:600px){
+ .actions .btn{flex:1 1 auto;justify-content:center}
+ }
+ .info-wrapper{position:relative;display:inline-flex;align-items:center;margin-left:6px}
+ .info-icon{cursor:pointer;font-size:18px;line-height:1;user-select:none}
+ .info-popover{position:absolute;top:125%;right:0;margin-top:4px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:6px 8px;max-width:250px;box-shadow:0 8px 18px rgba(15,23,42,0.12);font-size:13px;line-height:1.4;z-index:40;display:none}
+ .info-wrapper:hover .info-popover,
+ .info-wrapper:focus-within .info-popover,
+ .info-popover.show{display:block}
+ .btn-recalc{border:1px solid #e5e7eb;background:#fff;padding:8px 12px;border-radius:10px;cursor:pointer;font-weight:600}
+ .small{font-size:12px;color:#6b7280}
+ .badge{display:inline-block;padding:2px 6px;border-radius:6px;background:#eef2ff;color:#1e3a8a;font-size:11px;margin-left:6px}
+</style>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#60a5fa">
+</head>
+<body>
+<header>
+ <div class="hwrap">
+ <div>
+ <h1>RCU Clinica Dashboard (v4.5)</h1>
+ <div class="muted">Grafici &middot; Terapie &middot; Correlazioni &middot; Sintesi clinica</div>
+ </div>
+ <div class="actions">
+ <a class="btn" href="diario_rcu_chatgpt_v4_5.html">&#11013; Torna al Diario</a>
+ <a class="btn" href="analisi_rcu_chatgpt_v4_5.html" target="_blank" rel="noopener">&#128202; Analisi</a>
+ </div>
+ </div>
+</header>
+
+<div class="wrap">
+ <section class="card">
+ <div class="row">
+ <span class="muted">Filtro:</span>
+ <button class="btn" onclick="setWindow(7)">Ultimi 7</button>
+ <button class="btn" onclick="setWindow(30)">Ultimi 30</button>
+ <button class="btn" onclick="setWindow(0)">Tutti</button>
+ <span class="badge" id="lagBadge" style="margin-left:auto;cursor:pointer" title="Considera gli effetti del giorno dopo (t+1)">Lag: t</span>
+ </div>
+
+ <div class="kpi">
+ <div class="box"><h3>Rischio riacutizzazione</h3><div class="val" id="risk">→%</div></div>
+ <div class="box"><h3>Muco (media)</h3><div class="val" id="mucoRate">→</div></div>
+ <div class="box"><h3>Dolore medio</h3><div class="val" id="dolAvg">→</div></div>
+ <div class="box"><h3>Benessere medio</h3><div class="val" id="benAvg">→</div></div>
+ <div class="box"><h3>Giorni con terapia</h3><div class="val" id="therRate">→</div></div>
+ <div class="box"><h3>Attività fisica</h3><div class="val" id="actRate">→</div></div>
+ </div>
+
+ <canvas id="chTherapy" height="100"></canvas>
+ <div class="therapy-legend" id="therapyLegend"></div>
+ <div class="detail" id="therapyDeltaCard">
+ <h4>Variazione sintomi pre/post terapia <span class="info-wrapper"><span class="info-icon" id="therapyInfoIcon" tabindex="0" role="button" aria-label="Nota clinica">i </span><div class="info-popover" id="therapyInfoPopover">I farmaci aggiunti o assunti saltuariamente sono di solito una risposta a un peggioramento dei sintomi, non la causa. Le variazioni mostrate indicano associazione temporale, non causa-effetto. Un peggioramento può precedere l→introduzione del farmaco, seguito da un possibile miglioramento.</div></span></h4>
+ <div class="small" id="therapyDeltaEmpty">Nessuna introduzione di nuove terapie.</div>
+ <table class="delta-table" id="therapyDeltaTable" style="display:none">
+ <thead><tr><th>Farmaco</th><th> Dolore</th><th> Muco</th><th> Sangue</th><th>Trend</th></tr></thead>
+ <tbody></tbody>
+ </table>
+ </div>
+ <div style="height:12px"></div>
+ <canvas id="chIntegratori" height="100"></canvas>
+ <div style="height:12px"></div>
+ <canvas id="chAttivita" height="100"></canvas>
+ <div style="height:12px"></div>
+ <canvas id="chPesoTemp" height="100"></canvas>
+ <div style="height:12px"></div>
+ <canvas id="chDolBen" height="100"></canvas>
+ </section>
+
+ <section class="card">
+ <h2>Analisi intelligente</h2>
+ <div class="kpi">
+ <div class="box"><h3>Cambi terapeutici (ultimi 30 gg)</h3><div class="val" id="therChange30">--</div></div>
+ <div class="box"><h3>Uso corticosteroidi (%)</h3><div class="val" id="steroidRate">--</div></div>
+ <div class="box"><h3>Indice di remissione (%)</h3><div class="val" id="remissionRate">--</div></div>
+ </div>
+ <div id="alerts"></div>
+ <div class="row" style="justify-content:flex-end;margin-bottom:6px"><button class="btn-recalc" id="btnRecalc">→ Calcola correlazioni dettagliate</button></div>
+ <h3 style="margin:12px 0 6px">Correlazioni vs Muco (binario) → r [CI95], p, n</h3>
+ <table id="corrTable">
+ <thead><tr><th>Variabile</th><th>r [CI]</th><th>p-value</th><th>n</th></tr></thead>
+ <tbody></tbody>
+ </table>
+
+ <div class="detail" id="episodicBlock"><h4>Terapie episodiche vs flare</h4><div class="small">&phi; = <span id="episodicPhi">--</span>, p = <span id="episodicP">--</span>, n = <span id="episodicN">--</span></div></div>
+
+ <div id="detailBox" class="detail" style="display:none"><h4 id="detailTitle">Dettaglio</h4><div class="small" id="detailHint">Clicca una riga della tabella per vedere le sottovoci.</div><table id="subCorrTable" style="margin-top:8px"><thead><tr><th>Sottovoce</th><th>r</th><th>n</th></tr></thead><tbody></tbody></table><div style="height:8px"></div><canvas id="subCorrChart" height="120"></canvas></div>
+
+ <div class="summary" id="summaryBox">
+ <h3> Sintesi Clinica Automatica</h3>
+ <div id="summaryText" class="muted">In attesa di dati...</div>
+ </div>
+ </section>
+</div>
+
+<script>
+const KEY='diarioRCU_v4_1';
+const getAll=()=>JSON.parse(localStorage.getItem(KEY)||'[]');
+const byDate=a=>[...a].sort((x,y)=>x.data.localeCompare(y.data));
+
+let windowDays=30;
+let lagMode = 0; // 0: t, 1: t+1
+function setWindow(n){ windowDays=n; refreshAll(); }
+document.addEventListener('DOMContentLoaded',()=>{
+ const lb=document.getElementById('lagBadge');
+ if(lb){
+ lb.onclick=()=>{ lagMode = (lagMode+1)%2; lb.textContent = 'Lag: '+(lagMode? 't+1':'t'); refreshAll(); };
+ }
+ const therapyInfoIcon=document.getElementById('therapyInfoIcon');
+ const therapyInfoPopover=document.getElementById('therapyInfoPopover');
+ const therapyInfoWrap=therapyInfoIcon?.parentElement || null;
+ if(therapyInfoIcon && therapyInfoPopover && therapyInfoWrap){
+ const hidePopover=()=>{
+ therapyInfoPopover.classList.remove('show');
+ therapyInfoIcon.setAttribute('aria-expanded','false');
+ };
+ therapyInfoIcon.setAttribute('aria-expanded','false');
+ therapyInfoIcon.addEventListener('click',evt=>{
+ evt.stopPropagation();
+ const isShown = therapyInfoPopover.classList.toggle('show');
+ therapyInfoIcon.setAttribute('aria-expanded', isShown ? 'true' : 'false');
+ });
+ therapyInfoIcon.addEventListener('keydown',evt=>{
+ if(evt.key==='Enter' || evt.key===' '){
+ evt.preventDefault();
+ const isShown = therapyInfoPopover.classList.toggle('show');
+ therapyInfoIcon.setAttribute('aria-expanded', isShown ? 'true' : 'false');
+ } else if(evt.key==='Escape'){
+ hidePopover();
+ therapyInfoIcon.blur();
+ }
+ });
+ document.addEventListener('click',evt=>{
+ if(!therapyInfoWrap.contains(evt.target)) hidePopover();
+ });
+ document.addEventListener('keydown',evt=>{
+ if(evt.key==='Escape') hidePopover();
+ });
+ }
+});
+
+function byWindow(a){
+ if(!windowDays)return a;
+ const end=new Date();const start=new Date(end);start.setDate(end.getDate()-windowDays+1);
+ return a.filter(r=>new Date(r.data)>=start && new Date(r.data)<=end);
+}
+
+const mean=a=>a.length?a.reduce((s,x)=>s+x,0)/a.length:0;
+
+function clamp01(x){ return Math.max(0, Math.min(1, x)); }
+function zscore(a){
+ const m=mean(a), s=Math.sqrt(mean(a.map(v=>(v-m)*(v-m)))||1e-9);
+ return a.map(v=>(v-m)/s);
+}
+function lastN(a,n){ return a.slice(-n); }
+function shift(arr, k){ // positive k: use arr[i-k] at i
+ const out=new Array(arr.length).fill(null);
+ for(let i=0;i<arr.length;i++){
+ const j=i-k;
+ if(j>=0 && j<arr.length) out[i]=arr[j];
+ }
+ return out;
+}
+
+function riskScore(d){
+ const l = d.slice(-14);
+ if(!l.length) return 0;
+ const w7 = d.slice(-7);
+
+ const muco = mean(w7.map(r=>r.muco));
+ const dolore = mean(w7.map(r=>r.dolore/10));
+ const urgenza = mean(w7.map(r=>r.urgenza/3));
+ const sangue = mean(w7.map(r=> (r.sangue>=2)?1:0 ));
+ const evac = clamp01(mean(w7.map(r=> r.evac>=5?1: (r.evac<=1?0.6:0.2) )));
+ const notti = clamp01(mean(w7.map(r=> Math.min(r.notturni,3)/3 )));
+ const bristol = clamp01(mean(w7.map(r=> (r.bristol<=2||r.bristol>=6)?1:0 )));
+ const stress = mean(w7.map(r=> r.stress/10));
+ const febbre = clamp01(mean(w7.map(r=> r.temp>37.5?1:0 )));
+
+ const pesoTrend = (()=>{
+ const pw = lastN(d.map(r=>r.peso||0).filter(x=>x>0), 28);
+ if(pw.length<3) return 0;
+ const t=[...Array(pw.length)].map((_,i)=>i);
+ const mx=mean(t), my=mean(pw);
+ let num=0, den=0; for(let i=0;i<pw.length;i++){ num+=(t[i]-mx)*(pw[i]-my); den+=(t[i]-mx)*(t[i]-mx); }
+ const slope = den? num/den : 0;
+ return clamp01(-slope*10);
+ })();
+
+ function slope01(arr){ 
+ if(arr.length<4) return 0;
+ const t=[...Array(arr.length)].map((_,i)=>i);
+ const z=zscore(arr);
+ const mx=mean(t), my=mean(z);
+ let num=0, den=0; for(let i=0;i<z.length;i++){ num+=(t[i]-mx)*(z[i]-my); den+=(t[i]-mx)*(t[i]-mx); }
+ return clamp01((den? num/den : 0)*0.5 + 0.5) - 0.5;
+ }
+ const trendMuco = slope01(l.map(r=>r.muco));
+ const trendDolore = slope01(l.map(r=>r.dolore||0));
+
+ const weights = {
+ muco:0.35, dolore:0.20, urgenza:0.15, sangue:0.20,
+ evac:0.10, notti:0.08, bristol:0.10, stress:0.10,
+ febbre:0.08, pesoTrend:0.10, trendMuco:0.10, trendDolore:0.06
+ };
+
+ let score =
+ muco*weights.muco + dolore*weights.dolore + urgenza*weights.urgenza + sangue*weights.sangue +
+ evac*weights.evac + notti*weights.notti + bristol*weights.bristol + stress*weights.stress +
+ febbre*weights.febbre + pesoTrend*weights.pesoTrend +
+ (0.5+trendMuco)*weights.trendMuco + (0.5+trendDolore)*weights.trendDolore;
+
+ const recent = d.slice(-3).map(r=> r.__riskTmp ?? null).filter(x=>x!=null);
+ if(recent.length){
+ const ema = recent.reduce((s,x)=>0.6*x+0.4*s, recent[0]);
+ score = 0.6*score + 0.4*ema;
+ }
+ const pct = Math.round(clamp01(score/1.2)*100);
+ if(d.length) d[d.length-1].__riskTmp = pct;
+ return pct;
+}
+
+function presenceSeries(data){
+ const pres={};
+ pres['Latticini/uova']=data.map(r=>+(r.latticini?.length>0));
+ pres['Carne/pesce']=data.map(r=>+(r.carne?.length>0));
+ pres['Verdure']=data.map(r=>+(r.verdureC?.length>0||r.verdureR?.length>0));
+ pres['Legumi']=data.map(r=>+(r.legumi?.length>0));
+ pres['Cereali']=data.map(r=>+(r.cereali?.length>0));
+ pres['Frutta']=data.map(r=>+(r.frutta?.length>0));
+ pres['Dolci/Bevande']=data.map(r=>+((r.dolci?.length>0)||(r.bevande?.length>0)));
+ pres['Integratori']=data.map(r=>+(r.integratori?.length>0));
+ pres['Terapie']=data.map(r=>+(r.terapie?.length>0));
+ pres['Attività fisica']=data.map(r=>+(r.attivita?.length>0));
+ pres['Altro']=data.map(r=>+(r.altro?.length>0));
+ pres['Digiuno serale']=data.map(r=>+(r.digiuno==='Si'));
+ return pres;
+}
+
+// --- Correlazioni ---
+function validPair(x,y){
+ const X=[], Y=[];
+ for(let i=0;i<x.length;i++) if(x[i]!=null && y[i]!=null){ X.push(x[i]); Y.push(y[i]); }
+ return [X,Y];
+}
+function phiBinary(x,y){
+ const [X,Y]=validPair(x,y);
+ let a=0,b=0,c=0,d=0;
+ for(let i=0;i<X.length;i++){
+ if(X[i]===1 && Y[i]===1) a++;
+ else if(X[i]===1 && Y[i]===0) b++;
+ else if(X[i]===0 && Y[i]===1) c++;
+ else d++;
+ }
+ const n=a+b+c+d;
+ const denom = Math.sqrt((a+b)*(c+d)*(a+c)*(b+d));
+ const r = denom? (a*d-b*c)/denom : 0;
+ const chi = n * r*r; // 1 df
+ const p = Math.exp(-0.5*chi);
+ return { r, p, n, ci:[r,r] };
+}
+
+// Pearson con p e CI bootstrap
+function pearson(x,y){
+ const n=Math.min(x.length,y.length);
+ if(n<3) return { r:0, p:1, n, ci:[0,0] };
+ const mx=mean(x), my=mean(y);
+ let num=0, dx=0, dy=0;
+ for(let i=0;i<n;i++){ const a=x[i]-mx, b=y[i]-my; num+=a*b; dx+=a*a; dy+=b*b; }
+ if(dx===0 || dy===0) return { r:0, p:1, n, ci:[0,0] };
+ const r=num/Math.sqrt(dx*dy);
+ const t = r*Math.sqrt((n-2)/(1-Math.min(0.9999, r*r)));
+ const p = approxPFromT(Math.abs(t), n-2);
+ const B=300, rs=[];
+ for(let b=0;b<B;b++){
+ let s=0, sx=0, sy=0, sxx=0, syy=0;
+ for(let i=0;i<n;i++){
+ const k = Math.floor(Math.random()*n);
+ const xi=x[k], yi=y[k];
+ s += xi*yi; sx += xi; sy += yi; sxx += xi*xi; syy += yi*yi;
+ }
+ const r_b = (s - sx*sy/n)/Math.sqrt((sxx - sx*sx/n)*(syy - sy*sy/n));
+ rs.push(isFinite(r_b)? r_b : 0);
+ }
+ rs.sort((a,b)=>a-b);
+ const lo = rs[Math.floor(0.025*B)], hi = rs[Math.floor(0.975*B)];
+ return { r, p, n, ci:[lo,hi] };
+
+ function approxPFromT(t, df){
+ const z = t * Math.sqrt((df-2)/(df-0.5));
+ const p1 = 2*(1 - normalCdf(z));
+ return Math.max(0, Math.min(1, p1));
+ }
+ function normalCdf(z){
+ const b1=0.319381530, b2=-0.356563782, b3=1.781477937, b4=-1.821255978, b5=1.330274429;
+ const p=0.2316419, c=0.3989422804014327;
+ const a=Math.abs(z);
+ const t=1/(1+a*p);
+ const m=((((b5*t+b4)*t+b3)*t+b2)*t+b1)*t;
+ const nd = 1 - c*Math.exp(-a*a/2)*m;
+ return z>=0? nd : 1-nd;
+ }
+}
+
+let chTherapy,chIntegratori,chAttivita,chPesoTemp,chDolBen;
+
+function drawCharts(data){
+ const labels=data.map(r=>r.data);
+ const dolore=data.map(r=>r.dolore),muco=data.map(r=>r.muco),
+ ben=data.map(r=>r.benessere),peso=data.map(r=>r.peso),temp=data.map(r=>r.temp),
+ integ=data.map(r=>+(r.integratori?.length>0)),ther=data.map(r=>+(r.terapie?.length>0));
+
+ if(chTherapy)chTherapy.destroy();
+ const mucoRaw=data.map(r=>Number(r.muco??0));
+ const sangueRaw=data.map(r=>Number(r.sangue??0));
+ const doloreRaw=data.map(r=>Number(r.dolore??0));
+ const sangueScaled=sangueRaw.map(v=>Math.max(0, Math.min(10, (Math.max(0, Math.min(3, v))/3)*10 )));
+ const mucoScaled=mucoRaw.map(v=>Math.max(0, Math.min(10, v*10)));
+ const baseTherapies=new Set(['Mesalazina orale','Mesalazina rettale','Corticosteroidi','Immunosoppressori/Biologici','Probiotici','Antibiotici']);
+ const episodicSet=new Set(['Corticosteroidi','Antibiotici','Mesalazina rettale']);
+ const classifyTherapy=name=>{
+ const value=String(name||'').trim();
+ if(!value) return 'nessuna';
+ if(episodicSet.has(value)) return 'episodica';
+ if(baseTherapies.has(value)) return 'mantenimento';
+ return 'personalizzata';
+ };
+ const allTherapies=Array.from(new Set(data.flatMap(r=> (r.terapie||[]).map(t=>String(t).trim()).filter(v=>v && v.toLowerCase()!=='nessuna'))));
+ const resolveTherapyColor=name=>{
+ if(name==='Mesalazina orale') return '#2563eb';
+ if(episodicSet.has(name)) return '#7c3aed';
+ if(!baseTherapies.has(name)) return '#16a34a';
+ return '#0ea5e9';
+ };
+ const therapyColorMap=new Map();
+ allTherapies.forEach(name=>{
+ therapyColorMap.set(name, resolveTherapyColor(name));
+ });
+ updateTherapyLegend(allTherapies, therapyColorMap);
+ const newTherapyEvents=[];
+ const dayEventCount=new Map();
+ let prevTherapySet=new Set();
+ data.forEach((row, idx)=>{
+ const therapies=(row.terapie||[]).map(t=>String(t).trim()).filter(v=>v && v.toLowerCase()!=='nessuna');
+ const newOnes=therapies.filter(t=>!prevTherapySet.has(t));
+ if(newOnes.length){
+ const dayLabel=labels[idx];
+ let offset=dayEventCount.get(dayLabel)||0;
+ newOnes.forEach(drug=>{
+ const color=therapyColorMap.get(drug)||resolveTherapyColor(drug);
+ const baseline={
+ dolore:Number(row.dolore??null),
+ muco:Number(row.muco??null),
+ sangue:Number(row.sangue??null)
+ };
+ const windowEnd=Math.min(data.length, idx+4);
+ const postSlice=data.slice(idx+1, windowEnd);
+ let deltaDolore=null,deltaMuco=null,deltaSangue=null;
+ if(postSlice.length===3 && Number.isFinite(baseline.dolore) && Number.isFinite(baseline.muco) && Number.isFinite(baseline.sangue)){
+ const postDol=mean(postSlice.map(r=>Number(r.dolore??NaN)).filter(v=>Number.isFinite(v)));
+ const postMuco=mean(postSlice.map(r=>Number(r.muco??NaN)).filter(v=>Number.isFinite(v)));
+ const postSangue=mean(postSlice.map(r=>Number(r.sangue??NaN)).filter(v=>Number.isFinite(v)));
+ if(Number.isFinite(postDol)) deltaDolore=postDol - baseline.dolore;
+ if(Number.isFinite(postMuco)) deltaMuco=postMuco - baseline.muco;
+ if(Number.isFinite(postSangue)) deltaSangue=postSangue - baseline.sangue;
+ }
+ newTherapyEvents.push({
+ xValue:dayLabel,
+ label:dayLabel,
+ therapy:drug,
+ color,
+ offsetIndex:offset,
+ deltaDolore,
+ deltaMuco,
+ deltaSangue
+ });
+ offset+=1;
+ });
+ dayEventCount.set(dayLabel, offset);
+ }
+ prevTherapySet=new Set(therapies);
+ });
+ const trackBase=0.4;
+ const trackStep=0.25;
+ const therapyYMap=new Map();
+ allTherapies.forEach((name, idx)=>{
+ therapyYMap.set(name, trackBase + idx*trackStep);
+ });
+ const symptomDatasets=[
+ {
+ label:'Dolore (0-10)',
+ data:labels.map((label,idx)=>({x:label,y:Math.max(0, Math.min(10, doloreRaw[idx])),original:doloreRaw[idx]})),
+ borderColor:'#dc2626',
+ borderWidth:2,
+ backgroundColor:'rgba(220,38,38,0.12)',
+ tension:.25,
+ spanGaps:true,
+ yAxisID:'ySymptoms',
+ parsing:false
+ },
+ {
+ label:'Muco (0/1)',
+ data:labels.map((label,idx)=>({x:label,y:mucoScaled[idx],original:mucoRaw[idx]})),
+ borderColor:'#1e3a8a',
+ borderWidth:2,
+ backgroundColor:'rgba(30,58,138,0.1)',
+ borderDash:[6,4],
+ tension:.25,
+ spanGaps:true,
+ yAxisID:'ySymptoms',
+ parsing:false
+ },
+ {
+ label:'Sangue (0-3)',
+ data:labels.map((label,idx)=>({x:label,y:sangueScaled[idx],original:sangueRaw[idx]})),
+ borderColor:'#9333ea',
+ borderWidth:2,
+ backgroundColor:'rgba(147,51,234,0.1)',
+ tension:.25,
+ spanGaps:true,
+ yAxisID:'ySymptoms',
+ parsing:false
+ }
+ ];
+ const therapyDatasets=[];
+ allTherapies.forEach((name, idx)=>{
+ const color=therapyColorMap.get(name) || '#2563eb';
+ const trackY=therapyYMap.get(name) ?? (trackBase + idx*trackStep);
+ if(name==='Mesalazina orale'){
+ const points=labels.map((label, dataIdx)=>{
+ const therapies=(data[dataIdx].terapie||[]).map(t=>String(t).trim()).filter(v=>v && v.toLowerCase()!=='nessuna');
+ const present=therapies.includes(name);
+ return present ? {x:label,y:trackY,therapy:name,day:label,dataIndex:dataIdx} : {x:label,y:null,therapy:name,day:label,dataIndex:dataIdx};
+ });
+ therapyDatasets.push({
+ label:name,
+ type:'line',
+ parsing:false,
+ data:points,
+ yAxisID:'yTher',
+ borderColor:color,
+ backgroundColor:color,
+ pointBackgroundColor:color,
+ pointBorderColor:'#ffffff',
+ pointBorderWidth:1,
+ pointRadius:4,
+ pointHoverRadius:6,
+ tension:0.15,
+ spanGaps:false,
+ fill:false
+ });
+ } else {
+ const points=[];
+ labels.forEach((label, dataIdx)=>{
+ const therapies=(data[dataIdx].terapie||[]).map(t=>String(t).trim()).filter(v=>v && v.toLowerCase()!=='nessuna');
+ if(therapies.includes(name)){
+ points.push({x:label,y:trackY,therapy:name,day:label,dataIndex:dataIdx});
+ }
+ });
+ therapyDatasets.push({
+ label:name,
+ type:'scatter',
+ parsing:false,
+ data:points,
+ yAxisID:'yTher',
+ pointBackgroundColor:color,
+ pointBorderColor:color,
+ pointRadius:5,
+ pointHoverRadius:7,
+ pointBorderWidth:1,
+ showLine:false
+ });
+ }
+ });
+ const therapyAxisMax = allTherapies.length ? trackBase + (allTherapies.length-1)*trackStep + 0.35 : 1.6;
+ const therapyEventLinesPlugin={
+ id:'therapyEventLines',
+ afterDraw(chart){
+ const pluginOpts=chart.options?.plugins?.therapyEvents;
+ const events=pluginOpts?.events;
+ if(!events?.length) return;
+ const xScale=chart.scales?.x;
+ if(!xScale) return;
+ const {ctx, chartArea}=chart;
+ if(!chartArea) return;
+ const hexToRgba=(hex, alpha)=>{
+ if(!hex) return `rgba(37,99,235,${alpha})`;
+ let clean=hex.replace('#','');
+ if(clean.length===3) clean=clean.split('').map(ch=>ch+ch).join('');
+ if(clean.length!==6) return hex;
+ const bigint=parseInt(clean,16);
+ const r=(bigint>>16)&255;
+ const g=(bigint>>8)&255;
+ const b=bigint&255;
+ return `rgba(${r},${g},${b},${alpha})`;
+ };
+ const lineHeight=14;
+ const paddingX=6;
+ const paddingY=4;
+ ctx.save();
+ ctx.font='11px "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif';
+ ctx.textBaseline='top';
+ events.forEach(ev=>{
+ const x=xScale.getPixelForValue(ev.xValue);
+ if(!isFinite(x)) return;
+ const lineColor=hexToRgba(ev.color,0.4);
+ ctx.strokeStyle=lineColor;
+ ctx.lineWidth=1;
+ ctx.beginPath();
+ ctx.moveTo(x, chartArea.top);
+ ctx.lineTo(x, chartArea.bottom);
+ ctx.stroke();
+ const lines = (function(){
+ const arr = [];
+ arr.push(ev.label);
+ arr.push(`${ev.therapy} (nuova assunzione)`);
+ if(Number.isFinite(ev.deltaDolore)) arr.push(`? Dolore: ${(Math.round(ev.deltaDolore*100)/100).toFixed(2)}`);
+ if(Number.isFinite(ev.deltaMuco)) arr.push(`? Muco: ${(Math.round(ev.deltaMuco*100)/100).toFixed(2)}`);
+ if(Number.isFinite(ev.deltaSangue)) arr.push(`? Sangue: ${(Math.round(ev.deltaSangue*100)/100).toFixed(2)}`);
+ return arr;
+ })();
+ const widths=lines.map(text=>ctx.measureText(text).width);
+ const boxWidth=Math.max(...widths)+paddingX*2;
+ const numberOfLines=lines.length;
+ const boxHeight=numberOfLines*lineHeight + paddingY*2;
+ let boxX=x - boxWidth/2;
+ if(boxX < chartArea.left) boxX=chartArea.left;
+ if(boxX + boxWidth > chartArea.right) boxX=chartArea.right - boxWidth;
+ let boxY=chartArea.top + 6 + (ev.offsetIndex||0)*(boxHeight+4);
+ if(boxY + boxHeight > chartArea.bottom - 8){
+ boxY = chartArea.bottom - boxHeight - 8;
+ }
+ ctx.fillStyle='rgba(249,250,251,0.95)';
+ ctx.strokeStyle=ev.color;
+ ctx.lineWidth=1;
+ const radius=7;
+ if(typeof ctx.roundRect==='function'){
+ ctx.beginPath();
+ ctx.roundRect(boxX, boxY, boxWidth, boxHeight, radius);
+ ctx.fill();
+ ctx.stroke();
+ } else {
+ ctx.beginPath();
+ ctx.moveTo(boxX+radius, boxY);
+ ctx.lineTo(boxX+boxWidth-radius, boxY);
+ ctx.quadraticCurveTo(boxX+boxWidth, boxY, boxX+boxWidth, boxY+radius);
+ ctx.lineTo(boxX+boxWidth, boxY+boxHeight-radius);
+ ctx.quadraticCurveTo(boxX+boxWidth, boxY+boxHeight, boxX+boxWidth-radius, boxY+boxHeight);
+ ctx.lineTo(boxX+radius, boxY+boxHeight);
+ ctx.quadraticCurveTo(boxX, boxY+boxHeight, boxX, boxY+boxHeight-radius);
+ ctx.lineTo(boxX, boxY+radius);
+ ctx.quadraticCurveTo(boxX, boxY, boxX+radius, boxY);
+ ctx.closePath();
+ ctx.fill();
+ ctx.stroke();
+ }
+ ctx.fillStyle='#1f2937';
+ lines.forEach((text, lineIdx)=>{
+ ctx.fillText(text, boxX+paddingX, boxY+paddingY + lineIdx*lineHeight);
+ });
+ });
+ ctx.restore();
+ }
+ };
+ chTherapy=new Chart(chTherapyEl,{
+ type:'line',
+ data:{
+ labels,
+ datasets:[...symptomDatasets,...therapyDatasets]
+ },
+ options:{
+ responsive:true,
+ interaction:{mode:'index',intersect:false},
+ scales:{
+ ySymptoms:{
+ type:'linear',
+ position:'left',
+ min:0,
+ max:10,
+ ticks:{stepSize:2}
+ },
+ yTher:{
+ type:'linear',
+ position:'right',
+ min:0,
+ max:therapyAxisMax,
+ display:false,
+ grid:{display:false},
+ ticks:{display:false}
+ }
+ },
+ plugins:{
+ legend:{labels:{usePointStyle:true}},
+ tooltip:{
+ filter:item=> item?.datasetIndex===0,
+ callbacks:{
+ title(items){
+ const first=items?.[0];
+ return first?.label ?? '';
+ },
+ label(context){
+ const row=data[context.dataIndex]||{};
+ const doloreVal=Math.round(Number(row.dolore??0)*10)/10;
+ const mucoVal=Number(row.muco??0);
+ const sangueVal=Number(row.sangue??0);
+ return [`Dolore: ${doloreVal}` , `Muco: ${mucoVal}` , `Sangue: ${sangueVal}`];
+ },
+ afterLabel(context){
+ const row=data[context.dataIndex]||{};
+ const therapies=(row.terapie||[]).map(t=>String(t).trim()).filter(v=>v && v.toLowerCase()!=='nessuna');
+ if(!therapies.length) return ['Terapie: nessuna'];
+ const lines=['Terapie:'];
+ therapies.forEach(drug=>{
+ const type=classifyTherapy(drug);
+ const labelType = type==='episodica' ? 'episodica' : (type==='mantenimento' ? 'mantenimento' : 'personalizzata');
+ lines.push(`- ${drug} (${labelType})`);
+ });
+ return lines;
+ }
+ }
+ },
+ therapyEvents:{events:newTherapyEvents}
+ }
+ },
+ plugins:[therapyEventLinesPlugin]
+ });
+
+ if(chIntegratori)chIntegratori.destroy();
+ chIntegratori=new Chart(chIntegratoriEl,{type:'line',data:{labels,datasets:[
+ {label:'Integratori (0/1)',data:integ,borderWidth:1,borderDash:[5,5]},
+ {label:'Muco',data:muco,borderWidth:2,tension:.25}
+ ]}});
+
+ if(chAttivita)chAttivita.destroy();
+ const attiv=data.map(r=>+(r.attivita?.length>0));
+ chAttivita=new Chart(chAttivitaEl,{type:'line',data:{labels,datasets:[
+ {label:'Attività fisica (0/1)',data:attiv,borderWidth:2,tension:.25,borderColor:'#22c55e'},
+ {label:'Muco',data:muco,borderWidth:2,tension:.25,borderColor:'#1e40af'}
+ ]}});
+
+ if(chPesoTemp)chPesoTemp.destroy();
+ chPesoTemp=new Chart(chPesoTempEl,{type:'line',data:{labels,datasets:[
+ {label:'Peso (kg)',data:peso,borderWidth:2,tension:.25},
+ {label:'Temperatura (°C)',data:temp,borderWidth:2,tension:.25,borderDash:[4,4]}
+ ]}});
+
+ if(chDolBen)chDolBen.destroy();
+ const benInv=data.map(r=>10-r.benessere);
+ chDolBen=new Chart(chDolBenEl,{type:'line',data:{labels,datasets:[
+ {label:'Dolore (0→10)',data:dolore,borderWidth:2,tension:.25},
+ {label:'Benessere inverso (10→x)',data:benInv,borderWidth:2,tension:.25,borderDash:[4,4]}
+ ]}});
+}
+
+let subChart;
+const CATEGORY_MAP = {
+ "Latticini/uova": {fields:["latticini"]},
+ "Carne/pesce": {fields:["carne"]},
+ "Verdure": {fields:["verdureC","verdureR"]},
+ "Legumi": {fields:["legumi"]},
+ "Cereali": {fields:["cereali"]},
+ "Frutta": {fields:["frutta"]},
+ "Dolci/Bevande": {fields:["dolci","bevande"]},
+ "Integratori": {fields:["integratori"]},
+ "Terapie": {fields:["terapie"]},
+ "Attività fisica": {fields:["attivita"]},
+};
+function uniqueSubitems(data, fields){
+ const set = new Set();
+ data.forEach(r=>{
+ fields.forEach(f=> (r[f]||[]).forEach(v=> set.add(v)));
+ });
+ return Array.from(set);
+}
+function seriesForSubitem(data, fields, sub){
+ return data.map(r=> fields.some(f => (r[f]||[]).includes(sub)) ? 1 : 0);
+}
+function colorForR(r){
+ const abs = Math.abs(r);
+ if(abs < 0.10) return '#9ca3af';
+ return r >= 0 ? '#dc2626' : '#1e40af';
+}
+
+function showDetail(groupName, dataWindow){
+ let map = CATEGORY_MAP[groupName];
+ if(!map && groupName==='Altro') map = {fields:['altro']};
+ if(!map) return;
+ const mucoY = dataWindow.map(r=>r.muco);
+ const subs = uniqueSubitems(dataWindow, map.fields);
+ const rows = [];
+ const labels = [];
+ const values = [];
+ const colors = [];
+ subs.forEach(sub=>{
+ const x = seriesForSubitem(dataWindow, map.fields, sub);
+ const s = phiBinary(x, mucoY);
+ rows.push({sub:sub, r:s.r, n:s.n});
+ labels.push(sub);
+ values.push(s.r);
+ colors.push(colorForR(s.r));
+ });
+ const tbody = document.querySelector('#subCorrTable tbody');
+ tbody.innerHTML = rows.sort((a,b)=>Math.abs(b.r)-Math.abs(a.r)).map(row=>
+ `<tr><td>${row.sub}</td><td>${row.r.toFixed(2)}</td><td>${row.n}</td></tr>`
+ ).join('') || '<tr><td colspan="3" class="small">Nessuna sottovoce trovata.</td></tr>';
+ document.getElementById('detailBox').style.display='block';
+ document.getElementById('detailTitle').textContent = `Dettaglio: ${groupName}`;
+ if(subChart) subChart.destroy();
+ const ctx = document.getElementById('subCorrChart');
+ subChart = new Chart(ctx, {
+ type: 'bar',
+ data: { labels: labels, datasets: [{ label: 'r (correlazione con Muco)', data: values, backgroundColor: colors }]},
+ options: { responsive:true, scales:{ y:{ min:-1, max:1 }}, plugins:{ legend:{ display:false } } }
+ });
+}
+function bindCorrClicks(dataWindow){
+ document.querySelectorAll('#corrTable tbody tr').forEach(tr=>{
+ tr.classList.add('clickable-row');
+ tr.addEventListener('click', ()=>{
+ const group = tr.getAttribute('data-group');
+ if(group) showDetail(group, dataWindow);
+ });
+ });
+}
+
+function renderCorrelations(data){
+ const tbody=document.querySelector('#corrTable tbody');tbody.innerHTML='';
+ const pres=presenceSeries(data);
+ const muco0=data.map(r=>r.muco);
+ const mucoLag = lagMode? shift(muco0, -1) : muco0;
+ const statsAll=[];
+
+ function addRow(name, stats, lagLabel){
+ tbody.insertAdjacentHTML('beforeend',
+ `<tr data-group="${name}">
+ <td>${name}${lagLabel?` (${lagLabel})`:''}</td>
+ <td>${stats.r.toFixed(2)} [${(stats.ci?.[0]??stats.r).toFixed(2)}, ${(stats.ci?.[1]??stats.r).toFixed(2)}]</td>
+ <td>${stats.p<0.0005?'&lt;0.001':stats.p.toFixed(3)}</td>
+ <td>${stats.n}</td>
+ </tr>`);
+ }
+
+ for(const [name,x] of Object.entries(pres)){
+ const s = phiBinary(x, mucoLag);
+ addRow(name, s, lagMode? 't+1':'t');
+ statsAll.push({name, ...s});
+ }
+
+ // Benjamini→Hochberg FDR
+ const m=statsAll.length;
+ const ord=[...statsAll].sort((a,b)=>a.p-b.p);
+ ord.forEach((o,i)=> o.q = (o.p*m)/(i+1));
+
+ // Evidenzia q<0.1
+ const trs=[...document.querySelectorAll('#corrTable tbody tr')];
+ ord.forEach(o=>{
+ const idx = statsAll.findIndex(s=>s.name===o.name && s.p===o.p);
+ if(idx>=0 && o.q<0.1){ trs[idx].style.fontWeight='700'; }
+ });
+
+ bindCorrClicks(data);
+ return ord;
+}
+
+function updateEpisodicCorrelation(data){
+ if(!episodicPhiEl||!episodicPEl||!episodicNEl){return;}
+ if(!data.length){
+ episodicPhiEl.textContent='--';
+ episodicPEl.textContent='--';
+ episodicNEl.textContent='0';
+ return;
+ }
+ const episodicSet=new Set(['Corticosteroidi','Antibiotici','Mesalazina rettale']);
+ const episodicUse=data.map(r=>+(r.terapie?.some(t=>episodicSet.has(String(t).trim()))||false));
+ const flare=data.map(r=>{
+ const mucoVal=Number(r.muco??0);
+ const sangueVal=Number(r.sangue??0);
+ const doloreVal=Number(r.dolore??0);
+ return +((mucoVal>0)||(sangueVal>1)||(doloreVal>3));
+ });
+ const stats=phiBinary(episodicUse, flare);
+ if(!stats.n || stats.n<=1){
+ episodicPhiEl.textContent='--';
+ episodicPEl.textContent='--';
+ episodicNEl.textContent=String(stats.n??0);
+ return;
+ }
+ episodicPhiEl.textContent=isFinite(stats.r)?stats.r.toFixed(2):'--';
+ episodicPEl.textContent=isFinite(stats.p)?(stats.p<0.0005?'&lt;0.001':stats.p.toFixed(3)):'--';
+ episodicNEl.textContent=String(stats.n);
+}
+
+function updateTherapyDelta(allData){
+ if(!therapyDeltaTableEl || !therapyDeltaBodyEl || !therapyDeltaEmptyEl){ return; }
+ if(!allData.length){
+ therapyDeltaBodyEl.innerHTML='';
+ therapyDeltaTableEl.style.display='none';
+ therapyDeltaEmptyEl.style.display='block';
+ therapyDeltaEmptyEl.textContent='Nessuna introduzione di nuove terapie.';
+ return;
+ }
+ const enriched=allData.map(r=>({
+ ...r,
+ __therapies:(r.terapie||[]).map(t=>String(t).trim()).filter(v=>v && v.toLowerCase()!=='nessuna')
+ }));
+ const rows=[];
+ const calcMeans=slice=>{
+ const take=key=>{
+ const arr=slice.map(item=>Number(item[key])).filter(v=>Number.isFinite(v));
+ return arr.length? mean(arr): null;
+ };
+ return { dolore: take('dolore'), muco: take('muco'), sangue: take('sangue') };
+ };
+ for(let i=0;i<enriched.length;i++){
+ const current=enriched[i].__therapies;
+ if(!current.length) continue;
+ const prevSet = i>0 ? new Set(enriched[i-1].__therapies) : new Set();
+ const newTherapies=current.filter(t=>!prevSet.has(t));
+ if(!newTherapies.length) continue;
+ const preSlice = enriched.slice(Math.max(0,i-3), i);
+ const postSlice = enriched.slice(i+1, Math.min(enriched.length, i+4));
+ if(preSlice.length<3 || postSlice.length<3) continue;
+ const preMeans=calcMeans(preSlice);
+ const postMeans=calcMeans(postSlice);
+ if(preMeans.dolore==null || preMeans.muco==null || preMeans.sangue==null) continue;
+ if(postMeans.dolore==null || postMeans.muco==null || postMeans.sangue==null) continue;
+ const deltaDolore=postMeans.dolore - preMeans.dolore;
+ const deltaMuco=postMeans.muco - preMeans.muco;
+ const deltaSangue=postMeans.sangue - preMeans.sangue;
+ const totalDelta=deltaDolore + deltaMuco + deltaSangue;
+ const trendSymbol = totalDelta < -0.001 ? '→' : (totalDelta > 0.001 ? '→' : '→');
+ const trendClass = trendSymbol==='→' ? 'trend-down' : (trendSymbol==='→' ? 'trend-up' : '');
+ newTherapies.forEach(drug=>{
+ rows.push({
+ therapy:drug,
+ date:enriched[i].data,
+ deltaDolore,
+ deltaMuco,
+ deltaSangue,
+ trendSymbol,
+ trendClass
+ });
+ });
+ }
+ if(!rows.length){
+ therapyDeltaBodyEl.innerHTML='';
+ therapyDeltaTableEl.style.display='none';
+ therapyDeltaEmptyEl.style.display='block';
+ therapyDeltaEmptyEl.textContent='Nessuna introduzione di nuove terapie con dati sufficienti.';
+ return;
+ }
+ const formatDelta=value=>{
+ const rounded=Math.round(value*100)/100;
+ const sign=rounded>0?'+':'';
+ return `${sign}${rounded.toFixed(2)}`;
+ };
+ therapyDeltaBodyEl.innerHTML=rows.map(row=>{
+ const label=row.date?`${row.therapy} → ${row.date}`:row.therapy;
+ const trendSpan=row.trendClass?`<span class="${row.trendClass}">${row.trendSymbol}</span>`:`<span>${row.trendSymbol}</span>`;
+ return `<tr>
+ <td>${label}</td>
+ <td>${formatDelta(row.deltaDolore)}</td>
+ <td>${formatDelta(row.deltaMuco)}</td>
+ <td>${formatDelta(row.deltaSangue)}</td>
+ <td>${trendSpan}</td>
+ </tr>`;
+ }).join('');
+ therapyDeltaTableEl.style.display='table';
+ therapyDeltaEmptyEl.style.display='none';
+}
+
+function updateTherapyLegend(therapies, colorMap){
+ if(!therapyLegendEl) return;
+ if(!therapies.length){
+ therapyLegendEl.innerHTML = '<span class="muted">Nessuna terapia registrata.</span>';
+ return;
+ }
+ therapyLegendEl.innerHTML = therapies.map(name=>{
+ const color = colorMap.get(name) || '#2563eb';
+ const safeName = name || 'Terapia';
+ return `<span class="legend-item"><span class="legend-swatch" style="background:${color}"></span>${safeName}</span>`;
+ }).join('');
+}
+
+/* ===== Sintesi automatica ===== */
+function generateSummary(data,corr,risk){
+ if(!data.length){summaryText.textContent="Nessun dato disponibile.";return;}
+ const muco=mean(data.map(r=>r.muco)),dol=mean(data.map(r=>r.dolore)),ben=mean(data.map(r=>r.benessere));
+ const integ=mean(data.map(r=>+(r.integratori?.length>0))),ther=mean(data.map(r=>+(r.terapie?.length>0)));
+ let txt=`Dolore medio ${dol.toFixed(1)}/10, benessere ${ben.toFixed(1)}/10. `;
+ txt+=`Muco nel ${(muco*100).toFixed(0)}% dei giorni. `;
+ txt+=`Terapie assunte nel ${(ther*100).toFixed(0)}%, integratori nel ${(integ*100).toFixed(0)}%.<br><br>`;
+
+ const rel=corr.filter(c=>c.q!=null && c.q<0.1).slice(0,3);
+ if(rel.length){
+ txt+="<b>Correlazioni (FDR q&lt;0.1):</b><br>";
+ rel.forEach(c=>{
+ if(c.r>0.25)txt+=`→¢ ${c.name}: r=${c.r.toFixed(2)} → possibile effetto sfavorevole.<br>`;
+ else if(c.r<-0.25)txt+=`→¢ ${c.name}: r=${c.r.toFixed(2)} → possibile effetto protettivo.<br>`;
+ else txt+=`→¢ ${c.name}: r=${c.r.toFixed(2)} (debole).<br>`;
+ });
+ if(lagMode) txt+=`<span class="small">Analisi in modalit lag t+1.</span><br>`;
+ } else txt+="<b>Correlazioni:</b> nessuna significativa (dati attuali).<br>";
+
+ let riskLabel="basso";
+ if(risk>60)riskLabel="alto"; else if(risk>35)riskLabel="medio";
+ txt+=`<br><b>Valutazione complessiva:</b> rischio ${riskLabel} di riacutizzazione (${risk}%).`;
+ summaryText.innerHTML=txt;
+}
+
+function buildAlerts(d){
+ if(!d.length)return[];
+ const last=d.at(-1),alerts=[];
+ if(last.sangue>=2)alerts.push("Sangue moderato/abbondante oggi.");
+ if(last.muco==1)alerts.push("Muco presente nelle ultime 24h.");
+ if(last.dolore>=7)alerts.push("Dolore elevato (≥7).");
+ return alerts;
+}
+
+let chTherapyEl,chIntegratoriEl,chAttivitaEl,chPesoTempEl,chDolBenEl,riskEl,mucoRate,dolAvg,benAvg,therRate,actRate,alertsEl,summaryText,therChange30El,steroidRateEl,remissionRateEl,episodicPhiEl,episodicPEl,episodicNEl,therapyLegendEl,therapyDeltaTableEl,therapyDeltaBodyEl,therapyDeltaEmptyEl;
+
+function refreshAll(){
+ chTherapyEl=document.getElementById('chTherapy');
+ chIntegratoriEl=document.getElementById('chIntegratori');
+ chAttivitaEl=document.getElementById('chAttivita');
+ chPesoTempEl=document.getElementById('chPesoTemp');
+ chDolBenEl=document.getElementById('chDolBen');
+ riskEl=document.getElementById('risk');
+ mucoRate=document.getElementById('mucoRate');
+ dolAvg=document.getElementById('dolAvg');
+ benAvg=document.getElementById('benAvg');
+ therRate=document.getElementById('therRate');
+ actRate=document.getElementById('actRate');
+ therChange30El=document.getElementById('therChange30');
+ steroidRateEl=document.getElementById('steroidRate');
+ remissionRateEl=document.getElementById('remissionRate');
+ episodicPhiEl=document.getElementById('episodicPhi');
+ episodicPEl=document.getElementById('episodicP');
+ episodicNEl=document.getElementById('episodicN');
+ therapyLegendEl=document.getElementById('therapyLegend');
+ therapyDeltaTableEl=document.getElementById('therapyDeltaTable');
+ therapyDeltaBodyEl=therapyDeltaTableEl?.querySelector('tbody')||null;
+ therapyDeltaEmptyEl=document.getElementById('therapyDeltaEmpty');
+ alertsEl=document.getElementById('alerts');
+ summaryText=document.getElementById('summaryText');
+
+ const all=byDate(getAll());
+ const data=byWindow(all);
+ const therapyKeys=all.map(r=>{
+ if(!Array.isArray(r?.terapie)) return '';
+ const cleaned=[...new Set(r.terapie.map(t=>String(t).trim()).filter(t=>t))];
+ cleaned.sort();
+ return cleaned.join('|');
+ });
+ const therapyChanges=therapyKeys.map((key,i)=> (i>0 && key!==therapyKeys[i-1]) ? 1 : 0);
+ const changeCount30=therapyChanges.slice(-30).reduce((s,v)=>s+v,0);
+ therChange30El.textContent=changeCount30.toString();
+ const risk=riskScore(data);
+ riskEl.textContent=risk+'%';
+ mucoRate.textContent=(mean(data.map(r=>r.muco))*100).toFixed(0)+'%';
+ dolAvg.textContent=mean(data.map(r=>r.dolore)).toFixed(1);
+ benAvg.textContent=mean(data.map(r=>r.benessere)).toFixed(1);
+ therRate.textContent=((mean(data.map(r=>+(r.terapie?.length>0))) * 100).toFixed(0))+'%';
+ actRate.textContent=((mean(data.map(r=>+(r.attivita?.some(a=>a!=="Nessuna") || false)))) * 100).toFixed(0)+'%';
+ const steroidUsage=mean(data.map(r=>+(r.terapie?.some(t=>String(t).trim()==='Corticosteroidi')||false)));
+ steroidRateEl.textContent=(steroidUsage*100).toFixed(0)+'%';
+ const remissionRate=mean(data.map(r=>{
+ const mucoVal=Number(r.muco??1);
+ const sangueVal=Number(r.sangue??99);
+ const doloreVal=Number(r.dolore??99);
+ return +(mucoVal===0 && sangueVal<=1 && doloreVal<=2);
+ }));
+ remissionRateEl.textContent=(remissionRate*100).toFixed(0)+'%';
+ drawCharts(data);
+ const alerts=buildAlerts(all);
+ alertsEl.innerHTML=alerts.length?alerts.map(a=>`<div class="alert">→ ï¸ ${a}</div>`).join(''):'<div class="muted">Nessun avviso recente.</div>';
+ const corr=renderCorrelations(data);
+ updateEpisodicCorrelation(data);
+ updateTherapyDelta(all);
+ generateSummary(data,corr,risk);
+}
+
+refreshAll();
+btnRecalc.onclick = ()=>{ refreshAll(); };
+</script>
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./service-worker.js', { scope: './' });
+  }
+</script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+

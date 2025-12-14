@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RCU Clinica v4.5  Diario</title>
+<style>
+  :root{--bg:#f7f8fb;--card:#ffffff;--ink:#1f2937;--muted:#6b7280;--brand:#1e40af;--bad:#dc2626;--border:#e5e7eb}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,Segoe UI,Roboto,Helvetica,Arial}
+  header{position:sticky;top:0;z-index:3;background:#fff;border-bottom:1px solid var(--border);padding:16px}
+  .hwrap{max-width:980px;margin:0 auto;text-align:center}
+  h1{margin:0 0 6px;font-size:20px}
+  .sub{color:var(--muted);font-size:13px}
+  .topbar{display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap;margin-top:10px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--border);background:#fff;padding:8px 12px;border-radius:10px;cursor:pointer;font-weight:600}
+  .btn-primary{background:var(--brand);color:#fff;border-color:transparent}
+  .btn-danger{background:var(--bad);color:#fff;border-color:transparent}
+  .wrap{max-width:980px;margin:16px auto;padding:0 12px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;box-shadow:0 6px 14px rgba(24,39,75,.06);padding:16px;margin:0 0 14px}
+  .card h2{margin:0 0 12px;font-size:16px}
+  label{display:block;font-size:13px;margin:6px 0;color:var(--muted)}
+  input,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:#fff;outline:none}
+  input[type="range"]{padding:0}
+  .row{display:flex;gap:12px;flex-wrap:wrap}
+  .row>*{flex:1 1 170px}
+  .group{margin:10px 0 4px;font-weight:700}
+  .checkgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:4px 6px;align-items:center;justify-items:start}
+  .muted{color:var(--muted);font-size:13px}
+  .adder{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+  .adder input{flex:1}
+  .checkgrid label{display:flex;align-items:center;gap:4px;margin:0;font-size:13px;}
+</style>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#60a5fa">
+</head>
+<body>
+<header>
+  <div class="hwrap">
+    <h1>RCU Clinica  Diario (v4.5)</h1>
+    <div class="sub">Inserimento rapido  Dashboard  Analisi  Dati locali</div>
+
+    <div class="topbar">
+      <span class="muted"> Giornate registrate:</span>
+      <select id="datesSelect"></select>
+      <button class="btn" id="btnLoad"> Carica</button>
+      <button class="btn btn-danger" id="btnDelete"> Elimina giornata</button>
+      <a class="btn" href="dashboard_rcu_chatgpt_v4_5.html" target="_blank"> Vai alla Dashboard</a>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- SINTOMI -->
+  <section class="card">
+    <h2>Sintomi di oggi</h2>
+    <div class="row">
+      <div><label>Data</label><input id="dt" type="date"></div>
+      <div><label>Evacuazioni (0)</label><input id="evac" type="number" min="0" step="1" value="0"></div>
+      <div><label>Sangue (03)</label><select id="sangue"><option value="0">0  Assente</option><option value="1">1  Tracce</option><option value="2">2  Moderato</option><option value="3">3  Abbondante</option></select></div>
+      <div><label>Muco</label><select id="muco"><option value="0">Assente</option><option value="1">Presente</option></select></div>
+      <div><label>Bristol (17)</label><select id="bristol" title="1=duro, 4=normale, 7=liquido">
+        <option value="1">1  Duro</option><option value="2">2  Grumoso</option><option value="3">3  Crepe</option>
+        <option value="4" selected>4  Normale</option><option value="5">5  Pezzi morbidi</option><option value="6">6  Pastoso</option><option value="7">7  Liquido</option>
+      </select></div>
+      <div><label>Dolore (010)</label><input id="dolore" type="range" min="0" max="10" value="0" oninput="od.textContent=value"><div class="muted">Valore: <b id="od">0</b></div></div>
+      <div><label>Gonfiore (010)</label><input id="gonfiore" type="range" min="0" max="10" value="0" oninput="og.textContent=value"><div class="muted">Valore: <b id="og">0</b></div></div>
+      <div><label>Urgenza (03)</label><select id="urgenza"><option value="0">0  Nessuna</option><option value="1">1  Lieve</option><option value="2">2  Moderata</option><option value="3">3  Severa</option></select></div>
+      <div><label>Risvegli notturni</label><input id="notturni" type="number" min="0" step="1" value="0"></div>
+      <div><label>Benessere (010)</label><input id="benessere" type="range" min="0" max="10" value="7" oninput="ob.textContent=value"><div class="muted">Valore: <b id="ob">7</b></div></div>
+      <div><label>Peso (kg)</label><input id="peso" type="number" min="10" max="200" step="0.1" value="65.0"></div>
+      <div><label>Temperatura (C)</label><input id="temp" type="number" min="34" max="42" step="0.1" value="36.7"></div>
+      <div><label>Stress (010)</label><input id="stress" type="range" min="0" max="10" value="3" oninput="os.textContent=value"><div class="muted">Valore: <b id="os">3</b></div></div>
+    </div>
+  </section>
+
+  <!-- ALIMENTAZIONE -->
+  <section class="card">
+    <h2>Alimentazione (Cosa hai mangiato oggi?)</h2>
+
+    <div class="group">Latticini e Uova</div>
+    <div class="checkgrid" id="g_latticini"></div>
+    <div class="adder"><input id="add_latticini" placeholder="Aggiungi altro"><button class="btn" onclick="addCustom('latticini')">+ Aggiungi</button></div>
+
+    <div class="group">Carne e Pesce</div>
+    <div class="checkgrid" id="g_carne"></div>
+    <div class="adder"><input id="add_carne" placeholder="Aggiungi altro"><button class="btn" onclick="addCustom('carne')">+ Aggiungi</button></div>
+
+    <div class="group">Verdure Cotte (e Tuberi)</div>
+    <div class="checkgrid" id="g_vcotte"></div>
+    <div class="adder"><input id="add_vcotte" placeholder="Aggiungi altro"><button class="btn" onclick="addCustom('vcotte')">+ Aggiungi</button></div>
+
+    <div class="group">Verdure Crude</div>
+    <div class="checkgrid" id="g_vcrude"></div>
+    <div class="adder"><input id="add_vcrude" placeholder="Aggiungi altro"><button class="btn" onclick="addCustom('vcrude')">+ Aggiungi</button></div>
+
+    <div class="group">Legumi</div>
+    <div class="checkgrid" id="g_legumi"></div>
+    <div class="adder"><input id="add_legumi" placeholder="Aggiungi altro"><button class="btn" onclick="addCustom('legumi')">+ Aggiungi</button></div>
+
+    <div class="group">Cereali e Carboidrati</div>
+    <div class="checkgrid" id="g_cereali"></div>
+    <div class="adder"><input id="add_cereali" placeholder="Aggiungi altro"><button class="btn" onclick="addCustom('cereali')">+ Aggiungi</button></div>
+
+    <div class="group">Frutta</div>
+    <div class="checkgrid" id="g_frutta"></div>
+    <div class="adder"><input id="add_frutta" placeholder="Aggiungi altro"><button class="btn" onclick="addCustom('frutta')">+ Aggiungi</button></div>
+
+    <div class="group">Dolci e Snack</div>
+    <div class="checkgrid" id="g_dolci"></div>
+    <div class="adder"><input id="add_dolci" placeholder="Aggiungi altro"><button class="btn" onclick="addCustom('dolci')">+ Aggiungi</button></div>
+
+    <div class="group">Bevande</div>
+    <div class="checkgrid" id="g_bevande"></div>
+    <div class="group">Altro</div>
+    <div class="checkgrid" id="g_altro"></div>
+    <div class="adder"><input id="add_altro" placeholder="Aggiungi altro."><button class="btn" onclick="addCustom('altro')">+ Aggiungi</button></div>
+
+    <div class="group">Digiuno serale</div>
+    <div class="checkgrid" id="g_digiuno"></div>
+    <div class="adder"><input id="add_bevande" placeholder="Aggiungi altro"><button class="btn" onclick="addCustom('bevande')">+ Aggiungi</button></div>
+
+    
+  </section>
+
+  <!-- INTEGRATORI -->
+  <section class="card">
+    <h2>Integratori naturali</h2>
+    <div class="checkgrid" id="g_integratori"></div>
+    <div class="adder"><input id="add_integratori" placeholder="Aggiungi integratore"><button class="btn" onclick="addCustom('integratori')">+ Aggiungi</button></div>
+
+    <div class="group">Reazione percepita (24h)</div>
+    <div class="checkgrid" id="g_reazione"></div>
+  </section>
+
+  <!-- ATTIVIT FISICA -->
+  <section class="card">
+    <h2>Attività fisica</h2>
+    <div class="checkgrid" id="g_attivita"></div>
+    <div class="adder"><input id="add_attivita" placeholder="Aggiungi attività"><button class="btn" onclick="addCustom('attivita')">+ Aggiungi</button></div>
+  </section>
+
+  <!-- TERAPIE -->
+  <section class="card">
+    <h2>Terapie (farmaci assunti oggi)</h2>
+    <div class="checkgrid" id="g_terapie"></div>
+    <div class="adder"><input id="add_terapie" placeholder="Aggiungi terapia/farmaco"><button class="btn" onclick="addCustom('terapie')">+ Aggiungi</button></div>
+  </section>
+
+  <!-- NOTE + AZIONI -->
+  <section class="card">
+    <h2>Note</h2>
+    <textarea id="noteClin" rows="3" placeholder="Visite, stress, infezioni, cambi terapia..."></textarea>
+    <textarea id="noteAlim" rows="3" placeholder="Intolleranze, pasti saltati, dettagli alimentari..."></textarea>
+
+    <div class="row" style="margin-top:10px">
+      <button class="btn btn-primary" id="btnSave"> Salva giornata</button>
+      <button class="btn" id="btnNew"> Nuovo giorno</button>
+      <button class="btn" id="btnExport"> Esporta CSV</button>
+      <label class="btn" for="imp"> Importa CSV</label><input id="imp" type="file" accept=".csv" style="display:none">
+      <button class="btn btn-danger" id="btnWipe"> Cancella TUTTO</button>
+    </div>
+    <div id="saveStatus" class="muted" style="margin-top:6px"></div>
+  </section>
+
+</div>
+
+<script>
+/* ===== chiavi storage ===== */
+const KEY='diarioRCU_v4_1';
+const KEY_CUSTOM='diarioRCU_v3_custom';
+
+/* ===== utils ===== */
+const todayISO=()=>new Date().toISOString().slice(0,10);
+const getAll=()=>JSON.parse(localStorage.getItem(KEY)||'[]');
+const setAll=arr=>localStorage.setItem(KEY,JSON.stringify(arr));
+const byDate=arr=>[...arr].sort((a,b)=>a.data.localeCompare(b.data));
+const getCustom=()=>({ ...{latticini:[],carne:[],vcotte:[],vcrude:[],legumi:[],cereali:[],frutta:[],dolci:[],bevande:[],altro:[],integratori:[],terapie:[],attivita:[]}, ...JSON.parse(localStorage.getItem(KEY_CUSTOM)||'{}')});
+const setCustom=obj=>localStorage.setItem(KEY_CUSTOM,JSON.stringify(obj));
+
+/* rimuove campi deprecati dai dati esistenti */
+function migrateData(){
+  const all=getAll();
+  let changed=false;
+  const arr=all.map(r=>{
+    if(r && Object.prototype.hasOwnProperty.call(r,'altroAlim')){
+      const {altroAlim, ...rest}=r; changed=true; return rest;
+    }
+    return r;
+  });
+  if(changed){ setAll(byDate(arr)); }
+}
+
+/* ===== dizionari base ===== */
+const FOOD_BASE={
+  latticini:["Latte","Yogurt","Formaggi stagionati","Uova"],
+  carne:["Carne bianca","Carne rossa","Pesce bianco","Pesce azzurro"],
+  vcotte:["Patate","Zucchine","Carote","Spinaci","Melanzane"],
+  vcrude:["Lattuga","Pomodoro","Finocchi","Cetriolo"],
+  legumi:["Ceci","Lenticchie","Fagioli","Piselli"],
+  cereali:["Pane","Pasta","Riso","Integrali","Senza glutine"],
+  frutta:["Mela","Pera","Frutta cotta","Banana","Agrumi","Frutta secca"],
+  dolci:["Biscotti","Cioccolato","Snack salati","Gelato"],
+  bevande:["Acqua","Caffè/Tè","Bibite gassate","Alcolici"]
+};
+const INTEGRATORI_BASE=["Nessuno","Curcuma","Zenzero","Vitamina D","Omega-3"];
+const TERAPIE_BASE=["Mesalazina orale","Mesalazina rettale","Corticosteroidi","Immunosoppressori/Biologici","Probiotici","Antibiotici"];
+const REAZIONE=["Migliorata","Neutra","Peggiorata"];
+const ATTIVITA_BASE=["Nessuna","Camminata","Corsa","Yoga","Palestra","Nuoto"];
+const DIGIUNO=["Si","No"];
+
+/* ===== render checkbox dinamici ===== */
+function renderChecks(hostId,list,name,multiple=true){
+  const host=document.getElementById(hostId);host.innerHTML='';
+  list.forEach(v=>{
+    const id=`${name}_${v.replace(/\W+/g,'_')}`;
+    const type= multiple? 'checkbox':'radio';
+    host.insertAdjacentHTML('beforeend', `<label><input type="${type}" name="${name}" value="${v}"> ${v}</label>`);
+  });
+}
+
+/* unisce base+custom e renderizza tutte le sezioni */
+function renderAllOptionGrids(){
+  const custom=getCustom();
+  for(const k of Object.keys(FOOD_BASE)){
+    const list=[...new Set([...(FOOD_BASE[k]||[]),...(custom[k]||[])])];
+    renderChecks(`g_${k}`,list,k,true);
+  }
+  // Sezione Altro (solo custom)
+  renderChecks('g_altro', (custom.altro||[]), 'altro', true);
+  renderChecks('g_integratori',[...new Set([...INTEGRATORI_BASE,...custom.integratori])],'integratori',true);
+  renderChecks('g_attivita',[...new Set([...ATTIVITA_BASE,...custom.attivita])],'attivita',true);
+  renderChecks('g_terapie',[...new Set([...TERAPIE_BASE,...custom.terapie])],'terapie',true);
+  renderChecks('g_reazione',REAZIONE,'reazione',false);
+  renderChecks('g_digiuno',DIGIUNO,'digiuno',false);
+}
+
+/* aggiunta voce custom (persistente) per gruppo */
+function addCustom(group){
+  const inp=document.getElementById(`add_${group}`);
+  const val=(inp.value||'').trim();
+  if(!val) return;
+  const custom=getCustom();
+  custom[group]=[...(custom[group]||[])];
+  if(!custom[group].includes(val)) custom[group].push(val);
+  setCustom(custom);
+  inp.value='';
+  renderAllOptionGrids();
+}
+
+/* helpers checkboxes */
+function getChecked(name,single=false){
+  const list=[...document.querySelectorAll(`input[name="${name}"]`)];
+  if(single){ const r=list.find(x=>x.checked); return r? r.value : ''; }
+  return list.filter(x=>x.checked).map(x=>x.value);
+}
+function setChecked(name,values,single=false){
+  const list=[...document.querySelectorAll(`input[name="${name}"]`)];
+  if(single){ list.forEach(x=>x.checked=(x.value===values)); return; }
+  const set=new Set(values||[]);
+  list.forEach(x=>x.checked=set.has(x.value));
+}
+
+/* ===== inizializzazione base ===== */
+document.getElementById('dt').value=todayISO();
+renderAllOptionGrids();
+
+/* ===== menu date ===== */
+function refreshDatesMenu(){
+  const sel=document.getElementById('datesSelect'); sel.innerHTML='';
+  const all=byDate(getAll());
+  all.forEach(r=>sel.insertAdjacentHTML('beforeend',`<option>${r.data}</option>`));
+  if(all.some(r=>r.data===todayISO())) sel.value=todayISO();
+  else if(all.length) sel.value=all.at(-1).data;
+}
+migrateData();
+refreshDatesMenu();
+
+/* ===== salvataggio ===== */
+function saveDay(){
+  const rec={
+    data: dt.value,
+    evac:+evac.value||0, sangue:+sangue.value, muco:+muco.value, bristol:+bristol.value,
+    dolore:+dolore.value, gonfiore:+gonfiore.value, urgenza:+urgenza.value, notturni:+notturni.value,
+    benessere:+benessere.value, peso:+peso.value, temp:+temp.value, stress:+stress.value,
+    // alimenti
+    latticini:getChecked('latticini'),
+    carne:getChecked('carne'),
+    verdureC:getChecked('vcotte'),
+    verdureR:getChecked('vcrude'),
+    legumi:getChecked('legumi'),
+    cereali:getChecked('cereali'),
+    frutta:getChecked('frutta'),
+    dolci:getChecked('dolci'),
+    bevande:getChecked('bevande'),
+    altro:getChecked('altro'),
+    digiuno:getChecked('digiuno',true),
+    // integratori / terapie
+    integratori:getChecked('integratori'),
+    attivita:getChecked('attivita'),
+    terapie:getChecked('terapie'),
+    reazione:getChecked('reazione',true),
+    // note
+    noteClin:noteClin.value, noteAlim:noteAlim.value
+  };
+
+  // salva record (merge per data)
+  const all=getAll().filter(r=>r.data!==rec.data);
+  all.push(rec);
+  setAll(byDate(all));
+  refreshDatesMenu();
+  saveStatus.textContent='Salvato ';
+}
+
+/* ===== carica/elimina/nuovo ===== */
+function loadDay(d){
+  const r=getAll().find(x=>x.data===d); if(!r) return;
+  dt.value=r.data; evac.value=r.evac??0; sangue.value=r.sangue??0; muco.value=r.muco??0; bristol.value=r.bristol??4;
+  dolore.value=r.dolore??0; document.getElementById('od').textContent=r.dolore??0;
+  gonfiore.value=r.gonfiore??0; document.getElementById('og').textContent=r.gonfiore??0;
+  urgenza.value=r.urgenza??0; notturni.value=r.notturni??0;
+  benessere.value=r.benessere??7; document.getElementById('ob').textContent=r.benessere??7;
+  peso.value=r.peso??65.0; temp.value=r.temp??36.7; stress.value=r.stress??3;
+  renderAllOptionGrids(); // rigenera checkbox (nel caso siano cambiate le custom)
+  setChecked('latticini',r.latticini||[]);
+  setChecked('carne',r.carne||[]);
+  setChecked('vcotte',r.verdureC||[]);
+  setChecked('vcrude',r.verdureR||[]);
+  setChecked('legumi',r.legumi||[]);
+  setChecked('cereali',r.cereali||[]);
+  setChecked('frutta',r.frutta||[]);
+  setChecked('dolci',r.dolci||[]);
+  setChecked('bevande',r.bevande||[]);
+  setChecked('altro',r.altro||[]);
+  setChecked('integratori',r.integratori||[]);
+  setChecked('attivita',r.attivita||[]);
+  setChecked('terapie',r.terapie||[]);
+  setChecked('reazione',r.reazione||'',true);
+  setChecked('digiuno',r.digiuno||'',true);
+  noteClin.value=r.noteClin||''; noteAlim.value=r.noteAlim||'';
+}
+function deleteDay(d){ setAll(getAll().filter(x=>x.data!==d)); refreshDatesMenu(); saveStatus.textContent='Giornata eliminata.'; }
+function clearForm(){
+  evac.value=0; sangue.value=0; muco.value=0; bristol.value=4; dolore.value=0; document.getElementById('od').textContent=0;
+  gonfiore.value=0; document.getElementById('og').textContent=0; urgenza.value=0; notturni.value=0;
+  benessere.value=7; document.getElementById('ob').textContent=7; peso.value=65.0; temp.value=36.7; stress.value=3;
+  ['latticini','carne','vcotte','vcrude','legumi','cereali','frutta','dolci','bevande','altro','integratori','attivita','terapie'].forEach(n=>setChecked(n,[]));
+  setChecked('digiuno','',true);
+  noteClin.value=''; noteAlim.value='';
+  saveStatus.textContent='Modulo pulito.';
+}
+
+/* ===== CSV ===== */
+function exportCSV(){
+  const rows=getAll(); if(!rows.length){alert('Nessun dato da esportare');return;}
+  const cols=Object.keys(rows[0]).filter(c=>c!=='altroAlim');
+  const csv=[cols.join(',')].concat(rows.map(r=>cols.map(c=>{
+    const v = Array.isArray(r[c])? r[c].join('|') : (r[c]??'');
+    return `"${String(v).replace(/"/g,'""')}"`;
+  }).join(','))).join('\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='diario_rcu_export.csv'; a.click(); URL.revokeObjectURL(url);
+}
+function importCSV(file){
+  const reader=new FileReader();
+  reader.onload=()=>{
+    const lines=reader.result.split(/\r?\n/).filter(Boolean);
+    const header=splitCSV(lines.shift()); const arr=lines.map(line=>{
+      const cols=splitCSV(line); const obj={}; header.forEach((h,i)=>obj[h]=cols[i]??'');
+      // rimuovi campo deprecato se presente nell'import
+      delete obj.altroAlim;
+      ["latticini","carne","verdureC","verdureR","legumi","cereali","frutta","dolci","bevande","altro","integratori","attivita","terapie"].forEach(k=>{
+        obj[k]=obj[k]? String(obj[k]).split('|').filter(Boolean):[];
+      });
+      ["evac","sangue","muco","bristol","dolore","gonfiore","urgenza","notturni","benessere","peso","temp","stress"].forEach(k=>{
+        if(obj[k]!==''&&obj[k]!=null) obj[k]=+obj[k];
+      });
+      return obj;
+    });
+    setAll(byDate(arr)); refreshDatesMenu(); saveStatus.textContent='Import completato ';
+  };
+  reader.readAsText(file);
+}
+function splitCSV(str){ return (str.match(/("([^"]|"")*"|[^,]+)(?=,|$)/g)||[]).map(s=>s.replace(/^"|"$/g,'').replace(/""/g,'"')); }
+
+/* ===== bind ===== */
+btnSave.onclick=saveDay;
+btnNew.onclick=clearForm;
+btnExport.onclick=exportCSV;
+btnWipe.onclick=()=>{ if(confirm('Eliminare tutti i dati?')){ localStorage.removeItem(KEY); saveStatus.textContent='Archivio svuotato.'; refreshDatesMenu(); } };
+imp.onchange=e=> e.target.files[0] && importCSV(e.target.files[0]);
+btnLoad.onclick=()=> loadDay(datesSelect.value);
+btnDelete.onclick=()=>{ const d=datesSelect.value; if(d&&confirm('Eliminare '+d+'?')) deleteDay(d); };
+
+/* ===== start ===== */
+document.getElementById('dt').value=todayISO();
+</script>
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./service-worker.js', { scope: './' });
+  }
+</script>
+</body>
+</html>
