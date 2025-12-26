@@ -1,7 +1,4 @@
-// service-worker.js (FIX) — niente redirect fantasma
-// Funziona bene su GitHub Pages /lcb_tracker/ e evita che i link finiscano su pagine sbagliate.
-
-const CACHE_NAME = 'lcb-tracker-cache-v2';
+const CACHE_NAME = 'lcb-tracker-cache-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -18,13 +15,15 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE_NAME);
-    // Non fallire se un asset manca: così il SW non resta “rotto”
+    // Tenta di caricare ogni asset singolarmente per evitare che un errore blocchi tutto
     await Promise.allSettled(
       ASSETS.map(async (url) => {
         try {
           const res = await fetch(url, { cache: 'reload' });
           if (res.ok) await cache.put(url, res);
-        } catch (_) {}
+        } catch (e) {
+          console.error('Errore durante la cache di:', url, e);
+        }
       })
     );
   })());
@@ -33,6 +32,7 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
+    // Elimina le vecchie versioni della cache
     await Promise.all(keys.map(k => (k !== CACHE_NAME ? caches.delete(k) : null)));
     await self.clients.claim();
   })());
@@ -42,27 +42,22 @@ self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
 
-  // Solo stesso origin
   if (url.origin !== self.location.origin) return;
 
-  const isHTML =
-    req.mode === 'navigate' ||
-    (req.headers.get('accept') || '').includes('text/html');
+  const isHTML = req.mode === 'navigate' || (req.headers.get('accept') || '').includes('text/html');
 
-  // Navigazioni HTML: network-first (evita che la cache “mappi” pagine sbagliate)
   if (isHTML) {
     event.respondWith((async () => {
       try {
         return await fetch(req);
       } catch (_) {
-        // Offline: prova prima la pagina richiesta, poi home
+        // Se offline, prova a caricare la risorsa dalla cache o rimanda alla home
         return (await caches.match(req)) || (await caches.match('./index.html'));
       }
     })());
     return;
   }
 
-  // Asset: cache-first
   event.respondWith((async () => {
     const cached = await caches.match(req);
     if (cached) return cached;
