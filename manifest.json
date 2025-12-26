@@ -1,8 +1,8 @@
 {
   "name": "Health Tracker",
   "short_name": "Tracker",
-  "start_url": "/lcb_tracker/",
-  "scope": "/lcb_tracker/",
+  "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#f7faff",
   "theme_color": "#60a5fa",
