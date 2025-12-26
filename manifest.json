@@ -1,6 +1,6 @@
 {
   "name": "Health Tracker",
-  "short_name": "Tracker",
+  "short_name": "mici tracker",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
