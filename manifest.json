@@ -1,6 +1,6 @@
 {
-  "name": "Health Tracker",
-  "short_name": "mici tracker",
+  "name": "lcb_tr",
+  "short_name": "lcb",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
